@@ -1,0 +1,4450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — money tracker</title>
+<link rel="icon" id="faviconLink">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f3ee;
+    --bg-raised:#ffffff;
+    --text:#1c1f22;
+    --text-dim:#5b6168;
+    --text-faint:#9aa0a6;
+    --rule:#ddd9d0;
+    --rule-strong:#c7c2b8;
+    --green:#4f7a4c;
+    --rust:#a8472a;
+    --gold:#a3803f;
+    --cumulative:#3f6f80;
+    --radius:3px;
+  }
+
+  html[data-theme="dark"]{
+    --bg:#14181c;
+    --bg-raised:#181d22;
+    --text:#e7e4dc;
+    --text-dim:#8b9199;
+    --text-faint:#565d66;
+    --rule:#282f37;
+    --rule-strong:#3a4149;
+    --green:#8fae8b;
+    --rust:#c1633e;
+    --gold:#c9a66b;
+    --cumulative:#7fb3c9;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    padding:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    font-size:15px;
+    line-height:1.5;
+  }
+
+  ::selection{background:var(--gold); color:#14181c;}
+
+  input, select, button{
+    font-family:inherit;
+    font-size:inherit;
+    color:inherit;
+  }
+
+  .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .wrap{
+    max-width:1080px;
+    margin:0 auto;
+    padding:40px 28px 80px;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:56px;
+    position:sticky;
+    top:0;
+    z-index:20;
+    background:var(--bg);
+    padding:16px 10px;
+    margin-top:-16px;
+    margin-left:-10px;
+    margin-right:-10px;
+    width:calc(100% + 20px);
+    border-bottom:1px solid transparent;
+    transition:border-color .2s ease, box-shadow .2s ease;
+  }
+  header.stuck{
+    border-bottom-color:var(--rule);
+    box-shadow:0 8px 16px -14px rgba(0,0,0,0.4);
+  }
+
+  .wordmark{
+    font-family:'Newsreader', serif;
+    font-style:italic;
+    font-size:22px;
+    font-weight:500;
+    letter-spacing:0.2px;
+  }
+
+  .month-nav{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    color:var(--text-dim);
+    font-size:14px;
+  }
+  .month-nav-months{
+    display:inline-flex;
+    align-items:center;
+    gap:14px;
+  }
+
+  .month-nav button{
+    background:none;
+    border:none;
+    color:var(--text-dim);
+    cursor:pointer;
+    padding:4px 6px;
+    font-size:15px;
+    line-height:1;
+    transition:color .15s ease;
+  }
+  .month-nav button:hover{color:var(--text);}
+
+  .month-dropdown{position:relative; display:inline-block;}
+  #monthLabel{
+    min-width:118px;
+    text-align:center;
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    padding:4px 8px;
+    border-radius:var(--radius);
+    transition:background .15s ease;
+  }
+  #monthLabel:hover{background:var(--rule); color:var(--text);}
+
+  .month-dropdown-menu{
+    display:none;
+    position:absolute;
+    top:calc(100% + 8px);
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--bg-raised);
+    border:1px solid var(--rule-strong);
+    border-radius:var(--radius);
+    min-width:170px;
+    max-height:240px;
+    overflow-y:auto;
+    padding:6px;
+    box-shadow:0 10px 24px -8px rgba(0,0,0,0.35);
+    z-index:6;
+  }
+  .month-dropdown-menu.show{display:block;}
+  .month-dropdown-menu button{
+    display:block;
+    width:100%;
+    text-align:left;
+    background:none;
+    border:none;
+    color:var(--text-dim);
+    font-size:13px;
+    font-family:'IBM Plex Mono', monospace;
+    padding:7px 10px;
+    border-radius:var(--radius);
+    cursor:pointer;
+  }
+  .month-dropdown-menu button:hover{background:var(--rule); color:var(--text);}
+  .month-dropdown-menu button.active{color:var(--text); background:var(--rule);}
+  .month-dropdown-empty{padding:8px 10px; font-size:12.5px; color:var(--text-faint);}
+
+  .settings-btn, .mode-btn{
+    background:none;
+    border:1px solid var(--rule);
+    color:var(--text-dim);
+    cursor:pointer;
+    padding:5px 10px;
+    border-radius:var(--radius);
+    font-size:13px;
+    margin-left:6px;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .settings-btn:hover, .mode-btn:hover{border-color:var(--rule-strong); color:var(--text);}
+  .mode-dropdown{position:relative; display:inline-block;}
+  .mode-dropdown-menu{
+    display:none;
+    position:absolute;
+    top:calc(100% + 8px);
+    right:0;
+    background:var(--bg-raised);
+    border:1px solid var(--rule-strong);
+    border-radius:var(--radius);
+    min-width:140px;
+    padding:6px;
+    box-shadow:0 10px 24px -8px rgba(0,0,0,0.35);
+    z-index:6;
+  }
+  .mode-dropdown-menu.show{display:block;}
+  .mode-dropdown-menu button{
+    display:block;
+    width:100%;
+    text-align:left;
+    background:none;
+    border:none;
+    color:var(--text-dim);
+    font-size:13px;
+    padding:7px 10px;
+    border-radius:var(--radius);
+    cursor:pointer;
+  }
+  .mode-dropdown-menu button:hover{background:var(--rule); color:var(--text);}
+  .mode-dropdown-menu button.active{color:var(--text); background:var(--rule);}
+
+  /* ---------- hero ---------- */
+  .hero{
+    margin-bottom:36px;
+  }
+
+  .hero-figure{
+    font-family:'Newsreader', serif;
+    font-weight:500;
+    font-size:clamp(48px, 8vw, 72px);
+    letter-spacing:-0.5px;
+    line-height:1;
+  }
+  .hero-figure.negative{color:var(--rust);}
+
+  .hero-label{
+    color:var(--text-dim);
+    font-size:14px;
+    margin-top:10px;
+  }
+
+  .hero .scope-toggle{margin-top:14px;}
+
+  .stat-row{
+    display:flex;
+    gap:36px;
+    margin-top:28px;
+    padding-top:24px;
+    border-top:1px solid var(--rule);
+    flex-wrap:wrap;
+  }
+
+  .stat{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .stat .v{font-size:19px;}
+  .stat .l{font-size:12.5px; color:var(--text-dim);}
+  .stat.income .v{color:var(--green);}
+  .stat.expense .v{color:var(--rust);}
+  .stat.saved .v{color:var(--gold);}
+
+  /* ---------- layout ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:300px 1fr;
+    gap:56px;
+    align-items:start;
+  }
+
+  @media (max-width:760px){
+    .grid{grid-template-columns:1fr;}
+    .wrap{padding:28px 18px 60px;}
+  }
+
+  section h2{
+    font-size:13px;
+    font-weight:500;
+    text-transform:none;
+    color:var(--text-dim);
+    margin:0 0 16px;
+    padding-bottom:10px;
+    border-bottom:1px solid var(--rule);
+  }
+
+  section + section{margin-top:40px;}
+
+  /* ---------- form ---------- */
+  .type-toggle{
+    display:flex;
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    overflow:hidden;
+    margin-bottom:16px;
+  }
+  .type-toggle button{
+    flex:1;
+    background:none;
+    border:none;
+    padding:9px 4px;
+    cursor:pointer;
+    color:var(--text-dim);
+    font-size:13px;
+    border-right:1px solid var(--rule);
+    transition:background .15s ease, color .15s ease;
+  }
+  .type-toggle button:last-child{border-right:none;}
+  .type-toggle button.active{background:var(--rule); color:var(--text);}
+
+  .type-toggle.small-toggle{margin-bottom:12px;}
+  .type-toggle.small-toggle button{padding:6px 4px; font-size:12.5px;}
+
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--text-dim);
+    margin-bottom:6px;
+  }
+  .field input, .field select{
+    width:100%;
+    background:none;
+    border:none;
+    border-bottom:1px solid var(--rule);
+    padding:7px 2px;
+    outline:none;
+    transition:border-color .15s ease;
+  }
+  .field input:focus, .field select:focus{border-color:var(--gold);}
+  .field select{
+    appearance:none;
+    -webkit-appearance:none;
+    cursor:pointer;
+    padding-right:20px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' width='9' height='6'%3E%3Cpath d='M0 0L5 6L10 0Z' fill='%238b9199'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 2px center;
+  }
+  .field.amount input{font-family:'IBM Plex Mono', monospace;}
+
+  .fund-select-wrap{display:none;}
+  .fund-select-wrap.show{display:block;}
+
+  .add-btn{
+    width:100%;
+    background:none;
+    border:1px solid var(--text);
+    color:var(--text);
+    padding:10px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    margin-top:6px;
+    font-size:14px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .add-btn:hover{background:var(--text); color:var(--bg);}
+
+  /* ---------- funds ---------- */
+  .fund{
+    padding:12px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .fund:last-of-type{border-bottom:none;}
+  .fund-top{
+    display:flex;
+    justify-content:space-between;
+    font-size:13.5px;
+    margin-bottom:8px;
+  }
+  .fund-name{color:var(--text);}
+  .fund-name-row{display:flex; align-items:center; gap:6px; min-width:0;}
+  .drag-handle{
+    color:var(--text-faint);
+    cursor:grab;
+    font-size:13px;
+    line-height:1;
+    user-select:none;
+    flex-shrink:0;
+  }
+  .drag-card{
+    transition:opacity .15s ease, transform .15s ease, border-color .15s ease;
+    border-radius:var(--radius);
+  }
+  .drag-card.dragging{opacity:0.4;}
+  .drag-card.drag-over-top{box-shadow:0 -2px 0 0 var(--gold);}
+  .drag-card.drag-over-bottom{box-shadow:0 2px 0 0 var(--gold);}
+  .fund.editing{
+    background:var(--bg-raised);
+    box-shadow:0 0 0 1px var(--gold);
+    border-radius:var(--radius);
+    border-bottom-color:transparent;
+    padding:12px;
+    margin:-1px -12px 10px;
+  }
+  .fund.amt-color{
+    padding:12px 10px;
+    margin:0 -10px;
+    border-radius:var(--radius);
+    border-left:4px solid transparent;
+  }
+  body:not(.no-colorize) .fund.amt-color.income{background:color-mix(in srgb, var(--green) 15%, transparent); border-left-color:var(--green);}
+  body:not(.no-colorize) .fund.amt-color.expense{background:color-mix(in srgb, var(--rust) 15%, transparent); border-left-color:var(--rust);}
+  body:not(.no-colorize) .fund.amt-color.savings{background:color-mix(in srgb, var(--gold) 15%, transparent); border-left-color:var(--gold);}
+  body:not(.no-colorize) .fund.amt-color.income .fund-amt{color:var(--green);}
+  body:not(.no-colorize) .fund.amt-color.expense .fund-amt{color:var(--rust);}
+  body:not(.no-colorize) .fund.amt-color.savings .fund-amt{color:var(--gold);}
+  .fund-amt{color:var(--text-dim);}
+  .fund-amt .cur{color:var(--gold);}
+  .bar{
+    height:3px;
+    background:var(--rule);
+    border-radius:2px;
+    overflow:hidden;
+  }
+  .bar-fill{height:100%; background:var(--gold);}
+  .fund-actions{
+    display:flex;
+    gap:14px;
+    margin-top:8px;
+    flex-wrap:wrap;
+  }
+  .fund-actions button{
+    background:none; border:none; color:var(--text-faint);
+    cursor:pointer; font-size:12px; padding:0;
+  }
+  .fund-actions button:hover{color:var(--text);}
+  .fund-actions button.danger:hover{color:var(--rust);}
+  .fund-actions button.primary{color:var(--text-dim);}
+  .fund-actions button.primary:hover{color:var(--text);}
+
+  .fund-edit-form .field{margin-bottom:10px;}
+  .fund-edit-form .row{display:flex; gap:10px;}
+  .fund-edit-form .row .field{flex:1;}
+
+  .new-fund-toggle{
+    background:none; border:none; color:var(--text-dim);
+    cursor:pointer; font-size:13px; padding:12px 0 0; text-align:left;
+  }
+  .new-fund-toggle:hover{color:var(--text);}
+
+  .new-fund-form{display:none; margin-top:12px;}
+  .new-fund-form.show{display:block;}
+  .new-fund-form .row{display:flex; gap:10px;}
+  .new-fund-form .row .field{flex:1;}
+  .new-fund-form .row .add-btn{flex:1; width:auto; margin-top:2px;}
+
+  /* ---------- transactions ---------- */
+  .txn-empty{
+    color:var(--text-faint);
+    font-size:14px;
+    padding:20px 0;
+  }
+
+  .txn-date-group{
+    margin-bottom:22px;
+    padding-bottom:14px;
+    border-bottom:1px solid var(--rule);
+  }
+  .txn-date-group:last-child{
+    margin-bottom:0;
+    padding-bottom:0;
+    border-bottom:none;
+  }
+  .txn-date-heading{
+    font-size:12px;
+    color:var(--text-faint);
+    margin-bottom:6px;
+  }
+
+  .txn-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:9px 10px;
+    margin:0 -10px;
+    border-radius:var(--radius);
+    border-left:4px solid transparent;
+    transition:background .15s ease, border-color .15s ease;
+  }
+
+  .txn-main{min-width:0; flex:1;}
+  .txn-note{font-size:14px; color:var(--text);}
+  .txn-cat{font-size:12px; color:var(--text-dim); margin-top:2px;}
+  .txn-deduct-tag{
+    color:var(--rust);
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+    margin-left:4px;
+  }
+
+  .txn-amt{font-size:14.5px; white-space:nowrap; color:var(--text); transition:margin-right .2s ease;}
+
+  body:not(.no-colorize) .txn-row.income{background:color-mix(in srgb, var(--green) 15%, transparent); border-left-color:var(--green);}
+  body:not(.no-colorize) .txn-row.expense{background:color-mix(in srgb, var(--rust) 15%, transparent); border-left-color:var(--rust);}
+  body:not(.no-colorize) .txn-row.savings{background:color-mix(in srgb, var(--gold) 15%, transparent); border-left-color:var(--gold);}
+  body:not(.no-colorize) .amt-color.income{color:var(--green);}
+  body:not(.no-colorize) .amt-color.expense{color:var(--rust);}
+  body:not(.no-colorize) .amt-color.savings{color:var(--gold);}
+
+  .txn-actions{
+    display:flex;
+    align-items:center;
+    gap:2px;
+    max-width:0;
+    overflow:hidden;
+    flex-shrink:0;
+    transition:max-width .2s ease;
+  }
+  .txn-row:hover .txn-actions{max-width:110px;}
+  .txn-dup, .txn-del, .txn-edit{
+    background:none; border:none; color:var(--text-faint);
+    cursor:pointer; font-size:15px; line-height:1; padding:2px 4px;
+    opacity:0; transition:opacity .15s ease .05s, color .15s ease;
+    flex-shrink:0;
+  }
+  .txn-row:hover .txn-dup, .txn-row:hover .txn-del, .txn-row:hover .txn-edit{opacity:1;}
+  .txn-edit:hover{color:var(--cumulative);}
+  .txn-dup:hover{color:var(--gold);}
+  .txn-del:hover{color:var(--rust);}
+
+  /* ---------- timeline ---------- */
+  .timeline-wrap{
+    margin-bottom:56px;
+  }
+  .timeline-empty{
+    color:var(--text-faint);
+    font-size:14px;
+    padding:8px 0 0;
+  }
+  .timeline-chart{
+    width:100%;
+    height:160px;
+    overflow:visible;
+  }
+  .timeline-inner{
+    position:relative;
+  }
+  .tl-hover-col{
+    fill:transparent;
+    cursor:pointer;
+  }
+  .tl-guide{
+    stroke:var(--rule-strong);
+    stroke-width:1;
+    pointer-events:none;
+    opacity:0;
+  }
+  .tl-hit{
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .1s ease;
+  }
+  .tl-tooltip{
+    position:absolute;
+    pointer-events:none;
+    background:var(--bg-raised);
+    border:1px solid var(--rule-strong);
+    border-radius:var(--radius);
+    padding:8px 10px;
+    font-size:12px;
+    white-space:nowrap;
+    transform:translate(-50%, -100%);
+    opacity:0;
+    transition:opacity .1s ease;
+    z-index:5;
+  }
+  .tl-tooltip.show{opacity:1;}
+  .tl-tooltip .tl-month{color:var(--text); margin-bottom:4px; font-family:'IBM Plex Sans', sans-serif;}
+  .tl-tooltip .tl-row{display:flex; justify-content:space-between; gap:14px; font-family:'IBM Plex Mono', monospace;}
+  .tl-tooltip .tl-row.income{color:var(--green);}
+  .tl-tooltip .tl-row.expense{color:var(--rust);}
+  .tl-tooltip .tl-row.net{color:var(--gold);}
+  .tl-tooltip .tl-row.cumulative{color:var(--cumulative);}
+  .tl-hint{
+    font-size:11.5px;
+    color:var(--text-faint);
+    margin-top:2px;
+  }
+  .timeline-legend{
+    display:flex;
+    gap:22px;
+    margin-top:14px;
+    font-size:12px;
+    color:var(--text-dim);
+  }
+  .timeline-legend span{display:flex; align-items:center; gap:6px;}
+  .swatch{width:9px; height:9px; border-radius:50%; display:inline-block;}
+  .swatch.income{background:var(--green);}
+  .swatch.expense{background:var(--rust);}
+  .swatch.net{background:var(--gold);}
+  .swatch.cumulative{background:var(--cumulative);}
+
+  .month-pt{cursor:default;}
+  .month-pt:hover circle{r:4;}
+  .month-axis-label{font-size:10.5px; fill:var(--text-faint); font-family:'IBM Plex Mono', monospace;}
+
+  /* ---------- section scope toggle ---------- */
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:1px solid var(--rule);
+    margin-bottom:16px;
+    padding-bottom:10px;
+  }
+  .section-head h2{margin:0; padding:0; border:none;}
+  .scope-toggle{
+    display:flex;
+    gap:2px;
+    font-size:12px;
+  }
+  .scope-toggle button{
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    cursor:pointer;
+    padding:2px 8px;
+  }
+  .scope-toggle button.active{color:var(--text);}
+  .scope-toggle span{color:var(--text-faint);}
+
+  .txn-filters{
+    display:flex;
+    gap:10px;
+  }
+  .txn-filters select{
+    background:none;
+    border:none;
+    border-bottom:1px solid var(--rule);
+    color:var(--text-dim);
+    font-size:12.5px;
+    padding:2px 16px 4px 2px;
+    cursor:pointer;
+    appearance:none;
+    -webkit-appearance:none;
+    font-family:'IBM Plex Mono', monospace;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' width='9' height='6'%3E%3Cpath d='M0 0L5 6L10 0Z' fill='%238b9199'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 2px center;
+  }
+  .txn-filters select:hover, .txn-filters select:focus{
+    color:var(--text);
+    border-color:var(--rule-strong);
+    outline:none;
+  }
+
+  .txn-section-head{gap:16px;}
+  .txn-search-wrap{
+    position:relative;
+    flex:1;
+    min-width:80px;
+    max-width:280px;
+    display:flex;
+    align-items:center;
+  }
+  .txn-search-inline{
+    width:100%;
+    background:none;
+    border:none;
+    border-bottom:1px solid var(--rule);
+    padding:5px 20px 5px 2px;
+    font-size:13px;
+    color:var(--text);
+    outline:none;
+    transition:border-color .15s ease;
+  }
+  .txn-search-inline::placeholder{color:var(--text-faint);}
+  .txn-search-inline:focus{border-color:var(--gold);}
+  .txn-search-clear{
+    position:absolute;
+    right:0;
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    font-size:16px;
+    line-height:1;
+    cursor:pointer;
+    padding:4px;
+  }
+  .txn-search-clear:hover{color:var(--text);}
+  @media (max-width:520px){
+    .txn-section-head{flex-wrap:wrap;}
+    .txn-search-wrap{order:3; max-width:none; flex-basis:100%;}
+  }
+
+  /* ---------- breakdown ---------- */
+  .breakdown-flex{
+    display:flex;
+    gap:32px;
+    align-items:flex-start;
+    flex-wrap:wrap;
+  }
+  .breakdown-pie-wrap{
+    flex:0 0 150px;
+    position:relative;
+    width:150px;
+    height:150px;
+  }
+  .breakdown-pie-wrap svg{width:150px; height:150px; display:block;}
+  .pie-center{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    pointer-events:none;
+    text-align:center;
+  }
+  .pie-center .pc-amt{font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--text);}
+  .pie-center .pc-label{font-size:10.5px; color:var(--text-faint); margin-top:2px;}
+
+  .breakdown-list-wrap{flex:1; min-width:220px;}
+
+  .breakdown-row{
+    display:grid;
+    grid-template-columns:12px 100px 1fr auto;
+    gap:10px;
+    align-items:center;
+    margin-bottom:10px;
+    font-size:13px;
+  }
+  .breakdown-row .dot{width:9px; height:9px; border-radius:50%;}
+  .breakdown-row .cat{color:var(--text-dim);}
+  .breakdown-row .bar{flex:1;}
+  .breakdown-row .amt{color:var(--text); min-width:70px; text-align:right;}
+
+  /* ---------- settings panel ---------- */
+  .overlay{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(10,12,14,0.6);
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .panel{
+    background:var(--bg-raised);
+    border:1px solid var(--rule-strong);
+    border-radius:var(--radius);
+    padding:24px;
+    width:280px;
+    max-height:88vh;
+    overflow-y:auto;
+  }
+  .panel.panel-wide{width:500px; transition:width .15s ease;}
+  .panel.panel-wide.has-breakdown{width:650px; max-width:92vw;}
+  .settings-tabs{
+    display:flex;
+    gap:0;
+    margin:-4px -24px 18px;
+    padding:0 24px;
+    border-bottom:1px solid var(--rule);
+  }
+  .settings-tabs button{
+    background:none;
+    border:none;
+    border-bottom:2px solid transparent;
+    color:var(--text-faint);
+    cursor:pointer;
+    padding:8px 12px 10px;
+    margin-bottom:-1px;
+    font-size:13px;
+  }
+  .settings-tabs button.active{color:var(--text); border-bottom-color:var(--text);}
+  .settings-pane{display:none;}
+  .settings-pane.show{display:block;}
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .toggle-row span{font-size:13px; color:var(--text);}
+  .print-options-list{margin:18px 0;}
+  .print-options-list .toggle-row{
+    padding:12px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .print-options-list .toggle-row:first-child{padding-top:0;}
+  .print-options-list .toggle-row:last-child{border-bottom:none; padding-bottom:0;}
+  .switch{
+    position:relative;
+    width:40px;
+    height:22px;
+    flex-shrink:0;
+  }
+  .switch input{opacity:0; width:0; height:0;}
+  .switch-ui{
+    position:absolute;
+    inset:0;
+    background:var(--rule);
+    border-radius:11px;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  .switch-ui:after{
+    content:"";
+    position:absolute;
+    width:16px;
+    height:16px;
+    left:3px;
+    top:3px;
+    background:var(--bg-raised);
+    border-radius:50%;
+    transition:transform .15s ease;
+  }
+  .switch input:checked + .switch-ui{background:var(--gold);}
+  .switch input:checked + .switch-ui:after{transform:translateX(18px);}
+  .profile-select-row{display:flex; gap:8px; align-items:center;}
+  .profile-select-row select{flex:1;}
+  .profile-select-row .settings-btn{flex-shrink:0; padding:8px 12px;}
+  .panel h3{margin:0 0 16px; font-size:14px; font-weight:500; color:var(--text-dim);}
+  .panel .field{margin-bottom:14px;}
+  .panel .type-toggle{margin-bottom:16px;}
+  .panel-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:6px; flex-wrap:wrap;}
+  .panel-actions button{
+    background:none; border:1px solid var(--rule); color:var(--text);
+    padding:7px 14px; border-radius:var(--radius); cursor:pointer; font-size:13px;
+  }
+  .panel-actions button.primary{border-color:var(--text);}
+  .panel-actions button:hover{background:var(--text); color:var(--bg); border-color:var(--text);}
+
+  /* ---------- entry breakdown (itemization) ---------- */
+  .ebd-host{width:100%;}
+  .ebd-panel{
+    display:none;
+    margin:-4px 0 14px;
+    padding-top:10px;
+    border-top:1px solid var(--rule);
+  }
+  .ebd-head{
+    display:grid;
+    grid-template-columns:18px 1fr 78px 110px 54px 16px;
+    gap:8px;
+    font-size:10px;
+    letter-spacing:.03em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-bottom:8px;
+  }
+  .ebd-row{
+    display:grid;
+    grid-template-columns:18px 1fr 78px 110px 54px 16px;
+    gap:8px;
+    align-items:center;
+    margin-bottom:7px;
+    transition:opacity .15s ease;
+  }
+  .ebd-row.dragging{opacity:0.4;}
+  .ebd-row.drag-over-top{box-shadow:0 -2px 0 0 var(--gold);}
+  .ebd-row.drag-over-bottom{box-shadow:0 2px 0 0 var(--gold);}
+  .ebd-drag-handle{
+    color:var(--text-faint);
+    cursor:grab;
+    font-size:13px;
+    line-height:1;
+    user-select:none;
+    text-align:center;
+  }
+  .ebd-no{font-size:11px; color:var(--text-faint); font-family:'IBM Plex Mono', monospace;}
+  .ebd-row input{
+    background:var(--bg);
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    color:var(--text);
+    font-size:12px;
+    padding:5px 6px;
+    width:100%;
+    min-width:0;
+  }
+  .ebd-row input:focus{border-color:var(--gold);}
+  .ebd-row .ebd-amount-input{font-family:'IBM Plex Mono', monospace; text-align:right;}
+  .ebd-dir-btn{
+    background:none;
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    color:var(--text-dim);
+    font-size:11px;
+    padding:5px 0;
+    width:100%;
+    cursor:pointer;
+  }
+  .ebd-dir-btn:hover{border-color:var(--rule-strong);}
+  .ebd-dir-btn.sub{border-color:var(--rust); color:var(--rust);}
+  .ebd-panel-actions{display:flex; gap:8px; margin:10px 0;}
+  .ebd-panel-actions button{
+    background:none; border:1px solid var(--rule); color:var(--text);
+    padding:5px 10px; border-radius:var(--radius); cursor:pointer; font-size:12px;
+  }
+  .ebd-panel-actions button:hover{border-color:var(--rule-strong);}
+  .ebd-panel-actions button:disabled{opacity:.4; cursor:not-allowed;}
+  .ebd-total-row{
+    display:flex; justify-content:space-between;
+    font-size:12.5px; color:var(--text-dim);
+    border-top:1px solid var(--rule);
+    padding-top:8px; margin-top:4px;
+  }
+  .ebd-total-row .ebd-total{font-family:'IBM Plex Mono', monospace; color:var(--text);}
+  input.ebd-locked, input.ebd-locked[readonly]{opacity:.7; cursor:not-allowed;}
+
+  .txn-ebd-toggle, .tpl-ebd-toggle{
+    background:none; border:none; color:var(--text-faint);
+    font-size:11px; cursor:pointer; padding:0; margin-left:6px;
+    text-decoration:underline; text-underline-offset:2px;
+  }
+  .txn-ebd-toggle:hover, .tpl-ebd-toggle:hover{color:var(--text);}
+  .ebd-detail-wrap{display:none; margin:0 0 6px; padding:8px 12px; background:var(--bg); border-radius:var(--radius);}
+  .ebd-detail-wrap.show{display:block;}
+  body:not(.no-colorize) .ebd-detail-wrap.income{background:color-mix(in srgb, var(--green) 8%, var(--bg));}
+  body:not(.no-colorize) .ebd-detail-wrap.expense{background:color-mix(in srgb, var(--rust) 8%, var(--bg));}
+  body:not(.no-colorize) .ebd-detail-wrap.savings{background:color-mix(in srgb, var(--gold) 8%, var(--bg));}
+  .ebd-detail-row{
+    display:grid;
+    grid-template-columns:20px 1fr 60px auto;
+    gap:8px;
+    font-size:12px;
+    color:var(--text-dim);
+    padding:3px 0;
+  }
+  .ebd-detail-no{color:var(--text-faint); font-family:'IBM Plex Mono', monospace;}
+  .ebd-detail-date{color:var(--text-faint);}
+  .ebd-detail-amt{font-family:'IBM Plex Mono', monospace; color:var(--text); text-align:right;}
+  .ebd-detail-row.sub .ebd-detail-amt{color:var(--rust);}
+
+  .settings-divider{
+    height:1px;
+    background:var(--rule);
+    margin:18px 0;
+  }
+  .icon-picker{
+    position:relative;
+    display:inline-block;
+    margin-top:4px;
+  }
+  .icon-picker-btn{
+    background:none;
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    width:42px;
+    height:42px;
+    font-size:20px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:border-color .15s ease;
+  }
+  .icon-picker-btn:hover{border-color:var(--rule-strong);}
+  .icon-picker-menu{
+    display:none;
+    position:absolute;
+    top:calc(100% + 8px);
+    left:0;
+    background:var(--bg-raised);
+    border:1px solid var(--rule-strong);
+    border-radius:var(--radius);
+    padding:8px;
+    grid-template-columns:repeat(4, 32px);
+    gap:6px;
+    z-index:30;
+    box-shadow:0 10px 24px -8px rgba(0,0,0,0.35);
+  }
+  .icon-picker-menu.show{display:grid;}
+  .icon-picker-menu button{
+    background:none;
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    width:32px;
+    height:32px;
+    font-size:16px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .icon-picker-menu button:hover{border-color:var(--rule-strong); background:var(--rule);}
+  .settings-data-actions{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-items:flex-start;
+  }
+  .settings-data-actions button{
+    background:none; border:none; color:var(--text-dim);
+    cursor:pointer; padding:0; font-size:13px;
+    text-decoration:underline;
+    text-underline-offset:3px;
+  }
+  .settings-data-actions button:hover{color:var(--text);}
+  .settings-data-actions button.danger-text:hover{color:var(--rust);}
+
+  .goal-kind{
+    font-size:11px;
+    color:var(--text-faint);
+    margin-left:6px;
+  }
+
+  .notepad-wrap{display:none; margin-top:8px;}
+  .notepad-toolbar{display:flex; justify-content:flex-end; margin-bottom:12px;}
+  .notepad-input{
+    width:100%;
+    min-height:68vh;
+    background:var(--bg-raised);
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    color:var(--text);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13.5px;
+    line-height:1.55;
+    padding:16px;
+    resize:vertical;
+    outline:none;
+  }
+  .notepad-input:focus{border-color:var(--gold);}
+  .notepad-preview{
+    background:var(--bg-raised);
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    padding:16px 18px;
+    min-height:68vh;
+    font-family:'Newsreader', serif;
+    font-size:16px;
+    line-height:1.6;
+  }
+  .notepad-preview h1,.notepad-preview h2,.notepad-preview h3{font-weight:500; margin:0 0 10px;}
+  .notepad-preview h1{font-size:28px;}
+  .notepad-preview h2{font-size:22px;}
+  .notepad-preview h3{font-size:18px;}
+  .notepad-preview p{margin:0 0 12px;}
+  .notepad-preview ul,.notepad-preview ol{margin:0 0 12px; padding-left:22px;}
+  .notepad-preview code{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    background:var(--rule);
+    padding:1px 5px;
+    border-radius:2px;
+  }
+  .notepad-preview a{color:var(--gold);}
+
+  body.mode-book .no-book{display:none !important;}
+  body.mode-book .txn-actions{display:none !important;}
+  body.mode-book .fund-actions{display:none !important;}
+  body.mode-book header .month-nav #prevMonth,
+  body.mode-book header .month-nav #nextMonth{display:inline-flex;}
+  body.mode-notepad .ledger-main{display:none;}
+  body.mode-notepad .month-nav-months{visibility:hidden;}
+  body.mode-notepad .notepad-wrap{display:block;}
+  body.mode-templates .ledger-main{display:none;}
+  body.mode-templates .month-nav-months{visibility:hidden;}
+  body.mode-templates .templates-page{display:block;}
+  .templates-page{display:none;}
+  .add-entry-fab{
+    position:fixed;
+    right:28px;
+    bottom:28px;
+    z-index:40;
+    padding:12px 18px;
+    background:var(--text);
+    color:var(--bg);
+    border:1px solid var(--text);
+    border-radius:999px;
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+  }
+  .add-entry-fab:hover{opacity:.85;}
+  body.mode-templates .add-entry-fab, body.mode-notepad .add-entry-fab{display:none;}
+
+  .new-template-fab{
+    display:none;
+    position:fixed;
+    right:28px;
+    bottom:28px;
+    z-index:40;
+    align-items:center;
+    gap:6px;
+    padding:12px 18px;
+    background:var(--text);
+    border:1px solid var(--text);
+    border-radius:999px;
+    color:var(--bg);
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+  }
+  .new-template-fab:hover{opacity:.85;}
+  body.mode-templates .new-template-fab{display:flex;}
+
+  .print-fab{
+    display:none;
+    position:fixed;
+    right:28px;
+    bottom:28px;
+    z-index:40;
+    align-items:center;
+    gap:6px;
+    padding:12px 18px;
+    background:var(--text);
+    border:1px solid var(--text);
+    border-radius:999px;
+    color:var(--bg);
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+  }
+  .print-fab:hover{opacity:.85;}
+  body.mode-book .print-fab{display:flex;}
+
+  .print-title{
+    display:none;
+  }
+  .print-meta{
+    display:none;
+  }
+
+  @media print{
+    .txn-row, .ebd-detail-wrap{
+      -webkit-print-color-adjust:exact !important;
+      print-color-adjust:exact !important;
+      color-adjust:exact !important;
+    }
+    html[data-theme="dark"]{
+      --bg:#f4f3ee;
+      --bg-raised:#ffffff;
+      --text:#1c1f22;
+      --text-dim:#5b6168;
+      --text-faint:#9aa0a6;
+      --rule:#ddd9d0;
+      --rule-strong:#c7c2b8;
+      --green:#4f7a4c;
+      --rust:#a8472a;
+      --gold:#a3803f;
+      --cumulative:#3f6f80;
+    }
+    header,
+    .add-entry-fab, .new-template-fab, .print-fab,
+    .txn-search-wrap, .tl-hint, .overlay{
+      display:none !important;
+    }
+    body.print-hide-funds #fundsSection{display:none !important;}
+    body.print-hide-goals #goalsSection{display:none !important;}
+    body.print-hide-breakdown #breakdownSection{display:none !important;}
+    body.print-hide-transactions #transactionsSection{display:none !important;}
+    body.print-expand-breakdowns .ebd-detail-wrap{display:block !important;}
+    body.print-hide-balance #heroBalanceSection{display:none !important;}
+    body.print-hide-stats #statRowSection{display:none !important;}
+    body.print-hide-timeline #timelineSection{display:none !important;}
+    .grid.book-page{
+      background:none !important;
+      border:none !important;
+      border-radius:0 !important;
+      padding:0 !important;
+    }
+    .grid{
+      grid-template-columns:1fr !important;
+      gap:0 !important;
+    }
+    #fundsSection, #goalsSection, #breakdownSection, #transactionsSection{
+      border:1px solid var(--rule);
+      border-radius:var(--radius);
+      padding:20px 20px 24px;
+      margin-bottom:20px;
+    }
+    section + section{margin-top:0 !important;}
+    .print-title{
+      display:block;
+      font-family:'Newsreader', serif;
+      font-style:italic;
+      font-weight:500;
+      font-size:26px;
+      margin:0 0 6px;
+      color:#1c1f22;
+    }
+    .print-meta{
+      display:block;
+      font-family:'IBM Plex Sans', sans-serif;
+      font-size:12.5px;
+      letter-spacing:.02em;
+      color:#5b6168;
+      margin:0 0 28px;
+    }
+  }
+  body.mode-book .book-page{
+    background:var(--bg-raised);
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    padding:28px 28px 36px;
+  }
+  .book-kicker{
+    display:none;
+    font-size:12px;
+    color:var(--text-faint);
+    letter-spacing:0.4px;
+    margin-bottom:8px;
+  }
+  body.mode-book .book-kicker{display:block;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="wordmark" id="wordmarkText">Ledger</div>
+    <div class="month-nav">
+      <span class="month-nav-months">
+        <button id="prevMonth" aria-label="previous month">‹</button>
+        <div class="month-dropdown" id="monthDropdown">
+          <button type="button" class="month-label" id="monthLabel" aria-haspopup="true" aria-expanded="false">September 2026</button>
+          <div class="month-dropdown-menu" id="monthDropdownMenu" role="menu"></div>
+        </div>
+        <button id="nextMonth" aria-label="next month">›</button>
+      </span>
+      <div class="mode-dropdown" id="modeDropdown">
+        <button type="button" class="mode-btn" id="modeLabel" aria-haspopup="true" aria-expanded="false">Ledger</button>
+        <div class="mode-dropdown-menu" id="modeMenu" role="menu">
+          <button type="button" data-mode="ledger" class="active">Ledger</button>
+          <button type="button" data-mode="book">Book</button>
+          <button type="button" data-mode="templates">Templates</button>
+          <button type="button" data-mode="notepad">Notepad</button>
+        </div>
+      </div>
+      <button class="settings-btn" id="openSettings">Settings</button>
+    </div>
+  </header>
+
+  <div class="print-title" id="printTitle"></div>
+  <div class="print-meta" id="printMeta"></div>
+
+  <div class="ledger-main" id="ledgerMain">
+  <div class="hero">
+    <div class="hero-balance" id="heroBalanceSection">
+      <div class="book-kicker">Monthly report · view only</div>
+      <div class="hero-figure" id="heroFigure">₱0.00</div>
+      <div class="hero-label" id="heroLabel">net balance — September 2026</div>
+    </div>
+    <div class="scope-toggle no-book" id="balanceScopeToggle">
+      <button data-scope="monthly" class="active">Monthly</button>
+      <span>·</span>
+      <button data-scope="yearly">Yearly</button>
+      <span>·</span>
+      <button data-scope="overall">Overall</button>
+    </div>
+    <div class="stat-row" id="statRowSection">
+      <div class="stat income">
+        <div class="v num" id="statIncome">₱0.00</div>
+        <div class="l">income</div>
+      </div>
+      <div class="stat expense">
+        <div class="v num" id="statExpense">₱0.00</div>
+        <div class="l">expenses</div>
+      </div>
+      <div class="stat saved">
+        <div class="v num" id="statSaved">₱0.00</div>
+        <div class="l">saved</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="timeline-wrap" id="timelineSection">
+    <div class="section-head">
+      <h2>Timeline — all time</h2>
+    </div>
+    <div id="timelineChart"></div>
+    <div class="tl-hint">Hover for details, click a month to jump to it.</div>
+  </div>
+
+  <div class="grid">
+
+    <div class="col-left">
+      <section id="fundsSection">
+        <h2>Funds</h2>
+        <div id="fundsList"></div>
+        <button class="new-fund-toggle no-book" id="newFundToggle">+ new fund</button>
+        <div class="new-fund-form no-book" id="newFundForm">
+          <div class="field">
+            <label for="nfName">Fund name</label>
+            <input type="text" id="nfName" placeholder="e.g. Emergency fund">
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="nfTarget">Target</label>
+              <input type="number" id="nfTarget" step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div class="field">
+              <label for="nfStart">Starting</label>
+              <input type="number" id="nfStart" step="0.01" min="0" placeholder="0.00">
+            </div>
+          </div>
+          <div class="row">
+            <button class="add-btn" id="createFundBtn">Create fund</button>
+            <button class="add-btn" id="cancelFundBtn" style="border-color:var(--rule); color:var(--text-dim);">Cancel</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="goalsSection">
+        <h2>Goals</h2>
+        <div id="goalsList"></div>
+        <button class="new-fund-toggle no-book" id="newGoalToggle">+ new goal</button>
+        <div class="new-fund-form no-book" id="newGoalForm">
+          <div class="field">
+            <label for="ngName">Goal name</label>
+            <input type="text" id="ngName" placeholder="e.g. Vacation">
+          </div>
+          <div class="field">
+            <label>Horizon</label>
+            <div class="type-toggle" id="goalKindToggle">
+              <button type="button" data-kind="short" class="active">Short term</button>
+              <button type="button" data-kind="long">Long term</button>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="ngTarget">Target</label>
+              <input type="number" id="ngTarget" step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div class="field">
+              <label for="ngStart">Starting</label>
+              <input type="number" id="ngStart" step="0.01" min="0" placeholder="0.00">
+            </div>
+          </div>
+          <div class="row">
+            <button class="add-btn" id="createGoalBtn">Create goal</button>
+            <button class="add-btn" id="cancelGoalBtn" style="border-color:var(--rule); color:var(--text-dim);">Cancel</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-right">
+      <section id="breakdownSection">
+        <div class="section-head">
+          <h2>Where it went</h2>
+          <div class="scope-toggle no-book" id="breakdownScopeToggle">
+            <button data-scope="month" class="active">This month</button>
+            <span>·</span>
+            <button data-scope="total">Total</button>
+          </div>
+        </div>
+        <div class="breakdown-flex">
+          <div class="breakdown-pie-wrap" id="breakdownPie"></div>
+          <div class="breakdown-list-wrap">
+            <div id="breakdownList"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="transactionsSection">
+        <div class="section-head txn-section-head">
+          <h2>Transactions</h2>
+          <div class="txn-search-wrap">
+            <input type="text" id="txnSearch" class="txn-search-inline" placeholder="Search amount, category, or note…">
+            <button type="button" id="txnSearchClear" class="txn-search-clear" aria-label="Clear search" style="display:none;">×</button>
+          </div>
+          <div class="txn-filters no-book">
+            <select id="txnYearSelect"></select>
+            <select id="txnMonthSelect"></select>
+          </div>
+        </div>
+        <div id="txnList"></div>
+      </section>
+    </div>
+
+  </div>
+  </div>
+
+  <div class="templates-page" id="templatesPage">
+    <section>
+      <div class="section-head"><h2>Templates</h2></div>
+      <div id="templatesList"></div>
+    </section>
+  </div>
+
+  <button type="button" class="add-entry-fab no-book" id="openAddEntry" title="Add entry (C)">+ Add entry</button>
+
+  <button type="button" class="new-template-fab" id="newTemplateFab">+ New template</button>
+
+  <button type="button" class="print-fab" id="printBookBtn">🖨 Print to PDF</button>
+
+  <div class="overlay" id="printOptionsOverlay">
+    <div class="panel">
+      <h3>What to print</h3>
+      <p class="security-hint">Choose which sections to include, then print.</p>
+
+      <div class="print-options-list">
+        <div class="toggle-row">
+          <span>Net balance</span>
+          <label class="switch">
+            <input type="checkbox" id="printToggleBalance" checked>
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span>Income / Expenses / Saved</span>
+          <label class="switch">
+            <input type="checkbox" id="printToggleStats" checked>
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span>Timeline (all time)</span>
+          <label class="switch">
+            <input type="checkbox" id="printToggleTimeline" checked>
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span>Funds</span>
+          <label class="switch">
+            <input type="checkbox" id="printToggleFunds" checked>
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span>Goals</span>
+          <label class="switch">
+            <input type="checkbox" id="printToggleGoals" checked>
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span>Where it went (chart)</span>
+          <label class="switch">
+            <input type="checkbox" id="printToggleBreakdown" checked>
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span>Transactions</span>
+          <label class="switch">
+            <input type="checkbox" id="printToggleTransactions" checked>
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <span>Expand all breakdowns</span>
+          <label class="switch">
+            <input type="checkbox" id="printToggleExpandBreakdowns">
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <button id="cancelPrintOptions">Cancel</button>
+        <button class="primary" id="confirmPrintOptions">Print</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="newTemplateOverlay">
+    <div class="panel panel-wide">
+      <h3>New template</h3>
+      <div class="field">
+        <label for="ntName">Template name</label>
+        <input type="text" id="ntName" placeholder="e.g. Monthly rent">
+      </div>
+      <div class="type-toggle small-toggle" id="ntTypeToggle">
+        <button type="button" data-type="income">Income</button>
+        <button type="button" data-type="expense" class="active">Expense</button>
+        <button type="button" data-type="savings">Savings</button>
+      </div>
+      <div class="field amount">
+        <label for="ntAmount">Amount</label>
+        <input type="number" id="ntAmount" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="field" id="ntCategoryField">
+        <label for="ntCategory">Category</label>
+        <input type="text" id="ntCategory" list="ntCategoryList" placeholder="e.g. Rent">
+        <datalist id="ntCategoryList"></datalist>
+      </div>
+      <div class="field fund-select-wrap" id="ntFundSelectWrap">
+        <label>Direction</label>
+        <div class="type-toggle small-toggle" id="ntDirectionToggle">
+          <button type="button" data-direction="add" class="active">Add</button>
+          <button type="button" data-direction="deduct">Deduct</button>
+        </div>
+        <label for="ntFund">Save to</label>
+        <select id="ntFund">
+          <option value="">General savings</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="ntNote">Note (optional)</label>
+        <input type="text" id="ntNote" placeholder="Add a detail">
+      </div>
+      <div class="ebd-host" id="ntBreakdownHost">
+        <div class="field">
+          <div class="toggle-row">
+            <span>Add breakdown</span>
+            <label class="switch">
+              <input type="checkbox" class="ebd-toggle-input">
+              <span class="switch-ui"></span>
+            </label>
+          </div>
+        </div>
+        <div class="ebd-panel">
+          <div class="ebd-head"><span>No.</span><span>Note</span><span>Amount</span><span>Date</span><span></span><span></span></div>
+          <div class="ebd-rows"></div>
+          <div class="ebd-panel-actions">
+            <button type="button" class="ebd-add">+ Add row</button>
+            <button type="button" class="ebd-remove">− Remove row</button>
+          </div>
+          <div class="ebd-total-row"><span>Breakdown total</span><span class="ebd-total">0.00</span></div>
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button id="cancelNewTemplate">Cancel</button>
+        <button class="primary" id="createTemplateBtn">Save template</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notepad-wrap" id="notepadWrap">
+    <div class="notepad-toolbar">
+      <div class="type-toggle small-toggle" id="notepadViewToggle">
+        <button type="button" data-view="markdown" class="active">Markdown</button>
+        <button type="button" data-view="output">Output</button>
+      </div>
+    </div>
+    <textarea class="notepad-input" id="notepadInput" placeholder="# Notes&#10;&#10;Write anything here. **Bold**, *italic*, lists, and headings are supported."></textarea>
+    <div class="notepad-preview" id="notepadPreview" style="display:none;"></div>
+  </div>
+
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="panel panel-wide">
+    <h3>Settings</h3>
+
+    <div class="settings-tabs" id="settingsTabs">
+      <button type="button" data-tab="appearance" class="active">Appearance</button>
+      <button type="button" data-tab="data">Data</button>
+    </div>
+
+    <div class="settings-pane show" id="settingsPaneAppearance">
+      <div class="field">
+        <label for="settingLedgerName">Ledger name</label>
+        <input type="text" id="settingLedgerName" placeholder="Ledger">
+      </div>
+
+      <div class="field">
+        <label for="settingTabTitle">Tab title</label>
+        <input type="text" id="settingTabTitle" placeholder="Ledger — money tracker">
+      </div>
+
+      <div class="field">
+        <label>Tab icon</label>
+        <div class="icon-picker" id="iconPicker">
+          <button type="button" class="icon-picker-btn" id="iconPickerBtn" aria-haspopup="true" aria-expanded="false" aria-label="Choose tab icon">💹</button>
+          <div class="icon-picker-menu" id="iconPickerMenu" role="menu">
+            <button type="button" data-emoji="💹" aria-label="chart increasing with yen">💹</button>
+            <button type="button" data-emoji="💰" aria-label="money bag">💰</button>
+            <button type="button" data-emoji="💵" aria-label="dollar banknote">💵</button>
+            <button type="button" data-emoji="🏦" aria-label="bank">🏦</button>
+            <button type="button" data-emoji="📊" aria-label="bar chart">📊</button>
+            <button type="button" data-emoji="📈" aria-label="chart increasing">📈</button>
+            <button type="button" data-emoji="📉" aria-label="chart decreasing">📉</button>
+            <button type="button" data-emoji="💳" aria-label="credit card">💳</button>
+            <button type="button" data-emoji="🪙" aria-label="coin">🪙</button>
+            <button type="button" data-emoji="🧾" aria-label="receipt">🧾</button>
+            <button type="button" data-emoji="🐖" aria-label="pig">🐖</button>
+            <button type="button" data-emoji="🔖" aria-label="bookmark">🔖</button>
+          </div>
+          <input type="hidden" id="settingTabIcon">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="settingCurrency">Currency symbol</label>
+        <input type="text" id="settingCurrency" maxlength="4" placeholder="₱">
+      </div>
+
+      <div class="field">
+        <label>Appearance</label>
+        <div class="type-toggle" id="settingThemeToggle">
+          <button data-theme="light">Light</button>
+          <button data-theme="dark">Dark</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="toggle-row">
+          <span>Confirm before deleting</span>
+          <label class="switch">
+            <input type="checkbox" id="settingConfirmDelete" checked>
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="toggle-row">
+          <span>Colorize entries</span>
+          <label class="switch">
+            <input type="checkbox" id="settingColorize" checked>
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-pane" id="settingsPaneData">
+      <div class="field">
+        <label for="settingProfileSelect">Select profile</label>
+        <div class="profile-select-row">
+          <select id="settingProfileSelect"></select>
+          <button type="button" id="renameProfileBtn" class="settings-btn">Rename</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Data</label>
+        <div class="settings-data-actions">
+          <button type="button" id="addProfileBtn">Add new profile</button>
+          <button type="button" id="exportBtn">Export this profile (JSON)</button>
+          <button type="button" id="exportCsvBtn">Export transactions (CSV)</button>
+          <button type="button" id="importBtn">Import into this profile (JSON)</button>
+          <button type="button" id="deleteProfileBtn" class="danger-text">Delete this profile</button>
+          <input type="file" id="importFile" accept="application/json" style="display:none">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-actions">
+      <button id="cancelSettings">Cancel</button>
+      <button class="primary" id="saveSettings">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="addEntryOverlay">
+  <div class="panel panel-wide">
+    <h3>Add entry</h3>
+
+    <div class="settings-tabs" id="addEntryTabs">
+      <button type="button" data-tab="entry" class="active">Entry</button>
+      <button type="button" data-tab="templates">Templates</button>
+    </div>
+
+    <div class="settings-pane show" id="addEntryPaneEntry">
+      <div class="type-toggle" id="typeToggle">
+        <button data-type="income" class="active">Income</button>
+        <button data-type="expense">Expense</button>
+        <button data-type="savings">Savings</button>
+      </div>
+
+      <div class="field amount">
+        <label for="fAmount">Amount</label>
+        <input type="number" id="fAmount" step="0.01" min="0" placeholder="0.00">
+      </div>
+
+      <div class="field" id="categoryField">
+        <label for="fCategory">Category</label>
+        <input type="text" id="fCategory" list="categoryList" placeholder="e.g. Groceries">
+        <datalist id="categoryList"></datalist>
+      </div>
+
+      <div class="field fund-select-wrap" id="fundSelectWrap">
+        <label>Direction</label>
+        <div class="type-toggle small-toggle" id="savingsDirectionToggle">
+          <button type="button" data-direction="add" class="active">Add</button>
+          <button type="button" data-direction="deduct">Deduct</button>
+        </div>
+        <label for="fFund">Save to</label>
+        <select id="fFund">
+          <option value="">General savings</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="fNote">Note (optional)</label>
+        <input type="text" id="fNote" placeholder="Add a detail">
+      </div>
+
+      <div class="field">
+        <label for="fDate">Date</label>
+        <input type="date" id="fDate">
+      </div>
+
+      <div class="ebd-host" id="entryBreakdownHost">
+        <div class="field">
+          <div class="toggle-row">
+            <span>Add breakdown</span>
+            <label class="switch">
+              <input type="checkbox" class="ebd-toggle-input">
+              <span class="switch-ui"></span>
+            </label>
+          </div>
+        </div>
+        <div class="ebd-panel">
+          <div class="ebd-head"><span>No.</span><span>Note</span><span>Amount</span><span>Date</span><span></span><span></span></div>
+          <div class="ebd-rows"></div>
+          <div class="ebd-panel-actions">
+            <button type="button" class="ebd-add">+ Add row</button>
+            <button type="button" class="ebd-remove">− Remove row</button>
+          </div>
+          <div class="ebd-total-row"><span>Breakdown total</span><span class="ebd-total">0.00</span></div>
+        </div>
+      </div>
+
+      <div class="panel-actions" id="entryTabActions">
+        <button id="saveAsTemplateBtn">Save as template</button>
+        <button class="primary" id="addBtn">Add entry</button>
+      </div>
+    </div>
+
+    <div class="settings-pane" id="addEntryPaneTemplates">
+      <p class="security-hint">Log a saved template straight into today — or pick a different date.</p>
+      <div id="modalTemplatesList"></div>
+      <div class="panel-actions">
+        <button id="closeAddEntryFromTemplates">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="duplicateOverlay">
+  <div class="panel panel-wide">
+    <h3 id="dupModalTitle">Duplicate entry</h3>
+
+    <div class="type-toggle" id="dupTypeToggle">
+      <button data-type="income">Income</button>
+      <button data-type="expense">Expense</button>
+      <button data-type="savings">Savings</button>
+    </div>
+
+    <div class="field amount">
+      <label for="dupAmount">Amount</label>
+      <input type="number" id="dupAmount" step="0.01" min="0" placeholder="0.00">
+    </div>
+
+    <div class="field" id="dupCategoryField">
+      <label for="dupCategory">Category</label>
+      <input type="text" id="dupCategory" list="dupCategoryList" placeholder="e.g. Groceries">
+      <datalist id="dupCategoryList"></datalist>
+    </div>
+
+    <div class="field fund-select-wrap" id="dupFundSelectWrap">
+      <label>Direction</label>
+      <div class="type-toggle small-toggle" id="dupSavingsDirectionToggle">
+        <button type="button" data-direction="add" class="active">Add</button>
+        <button type="button" data-direction="deduct">Deduct</button>
+      </div>
+      <label for="dupFund">Save to</label>
+      <select id="dupFund">
+        <option value="">General savings</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="dupNote">Note (optional)</label>
+      <input type="text" id="dupNote" placeholder="Add a detail">
+    </div>
+
+    <div class="field">
+      <label for="dupDate">Date</label>
+      <input type="date" id="dupDate">
+    </div>
+
+    <div class="ebd-host" id="dupBreakdownHost">
+      <div class="field">
+        <div class="toggle-row">
+          <span>Add breakdown</span>
+          <label class="switch">
+            <input type="checkbox" class="ebd-toggle-input">
+            <span class="switch-ui"></span>
+          </label>
+        </div>
+      </div>
+      <div class="ebd-panel">
+        <div class="ebd-head"><span>No.</span><span>Note</span><span>Amount</span><span>Date</span><span></span><span></span></div>
+        <div class="ebd-rows"></div>
+        <div class="ebd-panel-actions">
+          <button type="button" class="ebd-add">+ Add row</button>
+          <button type="button" class="ebd-remove">− Remove row</button>
+        </div>
+        <div class="ebd-total-row"><span>Breakdown total</span><span class="ebd-total">0.00</span></div>
+      </div>
+    </div>
+
+    <div class="panel-actions">
+      <button id="cancelDuplicate">Cancel</button>
+      <button id="dupSaveAsTemplateBtn">Save as template</button>
+      <button class="primary" id="confirmDuplicate">Duplicate</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="logDateOverlay">
+  <div class="panel">
+    <h3>Log on a date</h3>
+    <div class="field">
+      <label for="logDateInput">Date</label>
+      <input type="date" id="logDateInput">
+    </div>
+    <div class="panel-actions">
+      <button id="cancelLogDate">Cancel</button>
+      <button class="primary" id="confirmLogDate">Log entry</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "ledger_data_v2";
+  var LEGACY_KEY = "ledger_data_v1";
+  var CATEGORY_SUGGESTIONS = {
+    income: ["Salary", "Freelance", "Gift", "Interest", "Refund", "Other income"],
+    expense: ["Groceries", "Rent", "Utilities", "Transport", "Dining", "Healthcare", "Entertainment", "Shopping", "Subscriptions", "Other"]
+  };
+
+  var todayISO = function(){
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  };
+
+  function uid(){
+    return Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+
+  function signedSavingsAmount(t){
+    return (t && t.direction === "deduct") ? -t.amount : t.amount;
+  }
+
+  function computeFundCurrent(fund){
+    var base = fund.startingBalance || 0;
+    var sum = 0;
+    state.transactions.forEach(function(t){
+      if(t.type === "savings" && t.fundId === fund.id) sum += signedSavingsAmount(t);
+    });
+    return base + sum;
+  }
+
+  function computeGoalCurrent(goal){
+    var base = goal.startingBalance || 0;
+    var sum = 0;
+    state.transactions.forEach(function(t){
+      if(t.type === "savings" && t.goalId === goal.id) sum += signedSavingsAmount(t);
+    });
+    return base + sum;
+  }
+
+  function emptyProfile(name){
+    return {
+      id: uid(),
+      name: name || "Untitled",
+      currency: "₱",
+      ledgerName: "Ledger",
+      tabTitle: "Ledger — money tracker",
+      tabIcon: "💹",
+      transactions: [],
+      funds: [],
+      goals: [],
+      templates: [],
+      customCategories: { income: [], expense: [] },
+      notepad: ""
+    };
+  }
+
+  function normalizeProfile(p){
+    if(!p || typeof p !== "object") p = {};
+    var base = emptyProfile(p.name);
+    if(p.id) base.id = p.id;
+    base.name = (p.name && String(p.name).trim()) || "Untitled";
+    base.currency = p.currency || "₱";
+    base.ledgerName = p.ledgerName || "Ledger";
+    base.tabTitle = p.tabTitle === undefined ? "" : p.tabTitle;
+    base.tabIcon = p.tabIcon || "💹";
+    base.transactions = Array.isArray(p.transactions) ? p.transactions : [];
+
+    function priorSignedSum(matchFn){
+      var sum = 0;
+      base.transactions.forEach(function(t){
+        if(t.type === "savings" && matchFn(t)) sum += (t.direction === "deduct" ? -t.amount : t.amount);
+      });
+      return sum;
+    }
+
+    base.funds = (Array.isArray(p.funds) ? p.funds : []).map(function(f){
+      if(f && f.startingBalance === undefined){
+        var priorSum = priorSignedSum(function(t){ return t.fundId === f.id; });
+        f.startingBalance = (f.current || 0) - priorSum;
+      }
+      return f;
+    });
+    base.goals = (Array.isArray(p.goals) ? p.goals : []).map(function(g){
+      if(g && g.startingBalance === undefined){
+        var priorSum = priorSignedSum(function(t){ return t.goalId === g.id; });
+        g.startingBalance = (g.current || 0) - priorSum;
+      }
+      return g;
+    });
+    base.customCategories = p.customCategories && typeof p.customCategories === "object"
+      ? { income: p.customCategories.income || [], expense: p.customCategories.expense || [] }
+      : { income: [], expense: [] };
+    base.notepad = typeof p.notepad === "string" ? p.notepad : "";
+    base.templates = Array.isArray(p.templates) ? p.templates : [];
+    return base;
+  }
+
+  function profileFromLegacy(data){
+    var p = normalizeProfile(data);
+    p.name = (data && data.profileName) || "Untitled";
+    return p;
+  }
+
+  function loadApp(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(parsed && Array.isArray(parsed.profiles) && parsed.profiles.length){
+          parsed.profiles = parsed.profiles.map(normalizeProfile);
+          if(!parsed.activeProfileId || !parsed.profiles.some(function(p){ return p.id === parsed.activeProfileId; })){
+            parsed.activeProfileId = parsed.profiles[0].id;
+          }
+          if(typeof parsed.confirmDelete !== "boolean") parsed.confirmDelete = true;
+          if(typeof parsed.colorizeEntries !== "boolean") parsed.colorizeEntries = true;
+          if(!parsed.viewMode) parsed.viewMode = "ledger";
+          return parsed;
+        }
+      }
+    }catch(e){}
+    try{
+      var legacy = localStorage.getItem(LEGACY_KEY);
+      if(legacy){
+        var old = JSON.parse(legacy);
+        var migrated = profileFromLegacy(old);
+        return { version: 2, activeProfileId: migrated.id, confirmDelete: true, colorizeEntries: true, viewMode: "ledger", profiles: [migrated] };
+      }
+    }catch(e){}
+    var first = emptyProfile("Untitled");
+    return { version: 2, activeProfileId: first.id, confirmDelete: true, colorizeEntries: true, viewMode: "ledger", profiles: [first] };
+  }
+
+  var app = loadApp();
+  var state = app.profiles.find(function(p){ return p.id === app.activeProfileId; }) || app.profiles[0];
+
+  // ---- theme ----
+  var THEME_KEY = "ledger_theme_v1";
+  function loadTheme(){
+    try{
+      return localStorage.getItem(THEME_KEY) || "light";
+    }catch(e){ return "light"; }
+  }
+  function applyTheme(theme){
+    document.documentElement.setAttribute("data-theme", theme);
+    try{ localStorage.setItem(THEME_KEY, theme); }catch(e){}
+    var toggle = document.getElementById("settingThemeToggle");
+    if(toggle){
+      Array.prototype.forEach.call(toggle.children, function(b){
+        b.classList.toggle("active", b.dataset.theme === theme);
+      });
+    }
+  }
+  var currentTheme = loadTheme();
+  applyTheme(currentTheme);
+  document.getElementById("settingThemeToggle").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    currentTheme = btn.dataset.theme;
+    applyTheme(currentTheme);
+  });
+
+  function save(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+    }catch(e){}
+  }
+
+  function applyFavicon(emoji){
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<text x="50" y="50" font-size="76" text-anchor="middle" dominant-baseline="central">' + emoji + '</text></svg>';
+    var link = document.getElementById("faviconLink");
+    if(!link){
+      link = document.createElement("link");
+      link.rel = "icon";
+      link.id = "faviconLink";
+      document.head.appendChild(link);
+    }
+    link.type = "image/svg+xml";
+    link.href = "data:image/svg+xml," + encodeURIComponent(svg);
+  }
+
+  function applyMetadata(){
+    var name = (state.ledgerName || "Ledger").trim() || "Ledger";
+    var title = (state.tabTitle || "").trim() || (name + " — money tracker");
+    document.getElementById("wordmarkText").textContent = name;
+    document.getElementById("printTitle").textContent = name;
+    document.title = title;
+    applyFavicon((state.tabIcon || "💹").trim() || "💹");
+  }
+  applyMetadata();
+
+  function applyColorize(){
+    document.body.classList.toggle("no-colorize", app.colorizeEntries === false);
+  }
+  applyColorize();
+
+  function fmt(n){
+    var neg = n < 0;
+    var v = Math.abs(n).toFixed(2);
+    var parts = v.split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return (neg ? "-" : "") + state.currency + parts.join(".");
+  }
+
+  function askDelete(message){
+    if(app.confirmDelete === false) return true;
+    return confirm(message);
+  }
+
+  function rememberCategory(type, name){
+    if(!name || type === "savings") return;
+    if(!state.customCategories) state.customCategories = { income: [], expense: [] };
+    if(!state.customCategories[type]) state.customCategories[type] = [];
+    var defaults = CATEGORY_SUGGESTIONS[type] || [];
+    if(defaults.indexOf(name) !== -1) return;
+    if(state.customCategories[type].indexOf(name) === -1){
+      state.customCategories[type].push(name);
+    }
+  }
+
+  // ---- view month state ----
+  var now = new Date();
+  var viewYear = now.getFullYear();
+  var viewMonth = now.getMonth(); // 0-indexed
+
+  var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  function monthKey(y,m){ return y + "-" + String(m+1).padStart(2,"0"); }
+
+  function txnInView(t){
+    var d = new Date(t.date + "T00:00:00");
+    return d.getFullYear() === viewYear && d.getMonth() === viewMonth;
+  }
+
+  // ---- rendering ----
+  var typeToggle = document.getElementById("typeToggle");
+  var currentType = "income";
+  var currentDirection = "add";
+  var categoryField = document.getElementById("categoryField");
+  var fundSelectWrap = document.getElementById("fundSelectWrap");
+  var fCategory = document.getElementById("fCategory");
+  var categoryList = document.getElementById("categoryList");
+  var fFund = document.getElementById("fFund");
+  var fDate = document.getElementById("fDate");
+  var savingsDirectionToggle = document.getElementById("savingsDirectionToggle");
+
+  fDate.value = todayISO();
+
+  savingsDirectionToggle.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    currentDirection = btn.dataset.direction;
+    Array.prototype.forEach.call(savingsDirectionToggle.children, function(b){
+      b.classList.toggle("active", b === btn);
+    });
+  });
+
+  typeToggle.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    currentType = btn.dataset.type;
+    Array.prototype.forEach.call(typeToggle.children, function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    updateFormForType();
+  });
+
+  function updateFormForType(){
+    if(currentType === "savings"){
+      categoryField.style.display = "none";
+      fundSelectWrap.classList.add("show");
+    } else {
+      categoryField.style.display = "";
+      fundSelectWrap.classList.remove("show");
+      refreshCategoryList();
+    }
+  }
+
+  function categoryOptionsFor(type){
+    var seen = {};
+    (CATEGORY_SUGGESTIONS[type] || []).forEach(function(c){ seen[c] = true; });
+    ((state.customCategories && state.customCategories[type]) || []).forEach(function(c){ seen[c] = true; });
+    state.transactions.forEach(function(t){
+      if(t.type === type && t.category) seen[t.category] = true;
+    });
+    return Object.keys(seen).sort(function(a,b){ return a.localeCompare(b); });
+  }
+
+  function refreshCategoryList(){
+    if(currentType === "savings") return;
+    var merged = categoryOptionsFor(currentType);
+    categoryList.innerHTML = merged.map(function(c){ return '<option value="'+esc(c)+'">'; }).join("");
+  }
+
+  function esc(s){
+    var d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  updateFormForType();
+
+  function fundOptionsHtml(){
+    var opts = ['<option value="">General savings</option>'];
+    if(state.funds.length){
+      opts.push('<optgroup label="Funds">');
+      state.funds.forEach(function(f){
+        opts.push('<option value="fund:'+f.id+'">'+esc(f.name)+'</option>');
+      });
+      opts.push('</optgroup>');
+    }
+    if(state.goals && state.goals.length){
+      opts.push('<optgroup label="Goals">');
+      state.goals.forEach(function(g){
+        opts.push('<option value="goal:'+g.id+'">'+esc(g.name)+'</option>');
+      });
+      opts.push('</optgroup>');
+    }
+    return opts.join("");
+  }
+
+  function applySavingsDestination(amount, dest){
+    if(!dest) return { category: "General savings", fundId: null, goalId: null };
+    if(dest.indexOf("fund:") === 0){
+      var fundId = dest.slice(5);
+      var fund = state.funds.find(function(f){ return f.id === fundId; });
+      return { category: fund ? fund.name : "General savings", fundId: fundId, goalId: null };
+    }
+    if(dest.indexOf("goal:") === 0){
+      var goalId = dest.slice(5);
+      var goal = state.goals.find(function(g){ return g.id === goalId; });
+      return { category: goal ? goal.name : "General savings", fundId: null, goalId: goalId };
+    }
+    return { category: "General savings", fundId: null, goalId: null };
+  }
+
+  function refreshFundSelect(){
+    fFund.innerHTML = fundOptionsHtml();
+    var dupFund = document.getElementById("dupFund");
+    if(dupFund) dupFund.innerHTML = fundOptionsHtml();
+    var ntFund = document.getElementById("ntFund");
+    if(ntFund) ntFund.innerHTML = fundOptionsHtml();
+    Array.prototype.forEach.call(document.querySelectorAll(".tpl-edit-fund"), function(sel){
+      var current = sel.value;
+      sel.innerHTML = fundOptionsHtml();
+      sel.value = current;
+    });
+  }
+
+  // ---- entry breakdown (itemization) ----
+  function createBreakdownEditor(container, amountInput, getDefaultDate){
+    var toggleInput = container.querySelector(".ebd-toggle-input");
+    var panel = container.querySelector(".ebd-panel");
+    var rowsWrap = container.querySelector(".ebd-rows");
+    var addBtn = container.querySelector(".ebd-add");
+    var removeBtn = container.querySelector(".ebd-remove");
+    var totalEl = container.querySelector(".ebd-total");
+    var panelWrap = container.closest(".panel");
+    var rows = [];
+    var wasOn = false;
+    var preBreakdownAmount = "";
+
+    function defaultDate(){
+      return (typeof getDefaultDate === "function" && getDefaultDate()) || todayISO();
+    }
+
+    function blankRow(){ return { note: "", amount: "", date: defaultDate(), direction: "add" }; }
+
+    function ensureMin(n){
+      while(rows.length < n) rows.push(blankRow());
+    }
+
+    function renderRows(){
+      rowsWrap.innerHTML = rows.map(function(r, i){
+        var isSub = r.direction === "sub";
+        return '<div class="ebd-row">' +
+          '<span class="ebd-no">'+(i+1)+'</span>' +
+          '<input type="text" class="ebd-note-input" placeholder="Detail" value="'+esc(r.note || "")+'">' +
+          '<input type="number" class="ebd-amount-input" step="0.01" min="0" placeholder="0.00" value="'+(r.amount === "" || r.amount == null ? "" : r.amount)+'">' +
+          '<input type="date" class="ebd-date-input" value="'+esc(r.date || "")+'">' +
+          '<button type="button" class="ebd-dir-btn'+(isSub ? ' sub' : '')+'" data-idx="'+i+'">'+(isSub ? "Sub" : "Add")+'</button>' +
+          '<span class="ebd-drag-handle" draggable="true" aria-hidden="true">⠿</span>' +
+        '</div>';
+      }).join("");
+
+      Array.prototype.forEach.call(rowsWrap.querySelectorAll(".ebd-note-input"), function(inp, i){
+        inp.addEventListener("input", function(){ rows[i].note = inp.value; });
+      });
+      Array.prototype.forEach.call(rowsWrap.querySelectorAll(".ebd-amount-input"), function(inp, i){
+        inp.addEventListener("input", function(){ rows[i].amount = inp.value; recalc(); });
+      });
+      Array.prototype.forEach.call(rowsWrap.querySelectorAll(".ebd-date-input"), function(inp, i){
+        inp.addEventListener("change", function(){ rows[i].date = inp.value; });
+      });
+      Array.prototype.forEach.call(rowsWrap.querySelectorAll(".ebd-dir-btn"), function(btn, i){
+        btn.addEventListener("click", function(){
+          rows[i].direction = rows[i].direction === "sub" ? "add" : "sub";
+          btn.classList.toggle("sub", rows[i].direction === "sub");
+          btn.textContent = rows[i].direction === "sub" ? "Sub" : "Add";
+          recalc();
+        });
+      });
+
+      if(removeBtn) removeBtn.disabled = rows.length <= 3;
+    }
+
+    var draggedRowIndex = null;
+
+    function clearRowDropMarkers(){
+      Array.prototype.forEach.call(rowsWrap.querySelectorAll(".drag-over-top,.drag-over-bottom"), function(el){
+        el.classList.remove("drag-over-top", "drag-over-bottom");
+      });
+    }
+
+    rowsWrap.addEventListener("dragstart", function(e){
+      var handle = e.target.closest(".ebd-drag-handle");
+      if(!handle) return;
+      var row = handle.closest(".ebd-row");
+      if(!row) return;
+      draggedRowIndex = Array.prototype.indexOf.call(rowsWrap.children, row);
+      row.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      try{ e.dataTransfer.setDragImage(row, 10, 10); }catch(err){}
+      try{ e.dataTransfer.setData("text/plain", String(draggedRowIndex)); }catch(err){}
+    });
+
+    rowsWrap.addEventListener("dragend", function(){
+      Array.prototype.forEach.call(rowsWrap.querySelectorAll(".ebd-row"), function(r){ r.classList.remove("dragging"); });
+      clearRowDropMarkers();
+      draggedRowIndex = null;
+    });
+
+    rowsWrap.addEventListener("dragover", function(e){
+      if(draggedRowIndex === null) return;
+      var row = e.target.closest(".ebd-row");
+      if(!row) return;
+      e.preventDefault();
+      var rect = row.getBoundingClientRect();
+      var before = (e.clientY - rect.top) < rect.height / 2;
+      clearRowDropMarkers();
+      row.classList.add(before ? "drag-over-top" : "drag-over-bottom");
+    });
+
+    rowsWrap.addEventListener("drop", function(e){
+      if(draggedRowIndex === null) return;
+      var row = e.target.closest(".ebd-row");
+      if(!row){ draggedRowIndex = null; return; }
+      e.preventDefault();
+      var rect = row.getBoundingClientRect();
+      var before = (e.clientY - rect.top) < rect.height / 2;
+      var toIndex = Array.prototype.indexOf.call(rowsWrap.children, row);
+      var item = rows.splice(draggedRowIndex, 1)[0];
+      if(toIndex > draggedRowIndex) toIndex -= 1;
+      rows.splice(before ? toIndex : toIndex + 1, 0, item);
+      clearRowDropMarkers();
+      draggedRowIndex = null;
+      renderRows();
+      recalc();
+    });
+
+    function signedSum(){
+      var sum = 0;
+      rows.forEach(function(r){
+        var v = parseFloat(r.amount);
+        if(!isNaN(v)) sum += (r.direction === "sub" ? -v : v);
+      });
+      return sum;
+    }
+
+    function recalc(){
+      var sum = signedSum();
+      if(totalEl) totalEl.textContent = fmt(sum);
+      if(toggleInput.checked && amountInput){
+        amountInput.value = sum ? sum.toFixed(2) : preBreakdownAmount;
+      }
+      return sum;
+    }
+
+    function setActive(on){
+      if(on && !wasOn && amountInput){
+        preBreakdownAmount = amountInput.value;
+      }
+      wasOn = on;
+      toggleInput.checked = on;
+      panel.style.display = on ? "block" : "none";
+      if(amountInput){
+        amountInput.readOnly = on;
+        amountInput.classList.toggle("ebd-locked", on);
+      }
+      if(panelWrap) panelWrap.classList.toggle("has-breakdown", on);
+      if(on) recalc();
+    }
+
+    toggleInput.addEventListener("change", function(){ setActive(toggleInput.checked); });
+    if(addBtn) addBtn.addEventListener("click", function(){ rows.push(blankRow()); renderRows(); recalc(); });
+    if(removeBtn) removeBtn.addEventListener("click", function(){
+      if(rows.length > 3){ rows.pop(); renderRows(); recalc(); }
+    });
+
+    return {
+      reset: function(){
+        rows = [];
+        ensureMin(5);
+        renderRows();
+        wasOn = false;
+        setActive(false);
+      },
+      load: function(existingRows){
+        rows = (existingRows && existingRows.length) ? existingRows.map(function(r){
+          return { note: r.note || "", amount: (r.amount != null ? r.amount : ""), date: r.date || defaultDate(), direction: r.direction === "sub" ? "sub" : "add" };
+        }) : [];
+        ensureMin(existingRows && existingRows.length ? Math.max(3, rows.length) : 5);
+        renderRows();
+        wasOn = false;
+        setActive(!!(existingRows && existingRows.length));
+        recalc();
+      },
+      isOn: function(){ return toggleInput.checked; },
+      getRows: function(){
+        return rows
+          .map(function(r){ return { note: (r.note||"").trim(), amount: parseFloat(r.amount) || 0, date: r.date || defaultDate(), direction: r.direction === "sub" ? "sub" : "add" }; })
+          .filter(function(r){ return r.amount > 0 || r.note; });
+      },
+      sum: signedSum
+    };
+  }
+
+  function breakdownDetailHtml(breakdown){
+    if(!breakdown || !breakdown.length) return "";
+    return '<div class="ebd-detail-rows">' + breakdown.map(function(r, i){
+      var dateLabel = "";
+      if(r.date){
+        var d = new Date(r.date + "T00:00:00");
+        if(!isNaN(d.getTime())) dateLabel = MONTH_NAMES_SHORT[d.getMonth()] + " " + d.getDate();
+      }
+      var isSub = r.direction === "sub";
+      return '<div class="ebd-detail-row'+(isSub ? ' sub' : '')+'">' +
+        '<span class="ebd-detail-no">'+(i+1)+'</span>' +
+        '<span class="ebd-detail-note">'+esc(r.note || "—")+'</span>' +
+        '<span class="ebd-detail-date">'+esc(dateLabel)+'</span>' +
+        '<span class="ebd-detail-amt num">'+(isSub ? "−" : "+")+fmt(r.amount)+'</span>' +
+      '</div>';
+    }).join("") + '</div>';
+  }
+
+  var entryBreakdownEditor = createBreakdownEditor(
+    document.getElementById("entryBreakdownHost"),
+    document.getElementById("fAmount"),
+    function(){ return document.getElementById("fDate").value; }
+  );
+  var dupBreakdownEditor = createBreakdownEditor(
+    document.getElementById("dupBreakdownHost"),
+    document.getElementById("dupAmount"),
+    function(){ return document.getElementById("dupDate").value; }
+  );
+  var ntBreakdownEditor = createBreakdownEditor(
+    document.getElementById("ntBreakdownHost"),
+    document.getElementById("ntAmount"),
+    null
+  );
+  entryBreakdownEditor.reset();
+  dupBreakdownEditor.reset();
+  ntBreakdownEditor.reset();
+
+  // ---- add entry ----
+  document.getElementById("addBtn").addEventListener("click", function(){
+    var amount = parseFloat(document.getElementById("fAmount").value);
+    if(!amount || amount <= 0){
+      document.getElementById("fAmount").focus();
+      return;
+    }
+    var date = fDate.value || todayISO();
+    var note = document.getElementById("fNote").value.trim();
+
+    var txn = {
+      id: uid(),
+      type: currentType,
+      amount: amount,
+      date: date,
+      note: note
+    };
+
+    if(currentType === "savings"){
+      var dest = applySavingsDestination(amount, fFund.value);
+      txn.category = dest.category;
+      txn.fundId = dest.fundId;
+      txn.goalId = dest.goalId;
+      txn.direction = currentDirection;
+    } else {
+      txn.category = fCategory.value.trim() || (currentType === "income" ? "Other income" : "Other");
+      rememberCategory(currentType, txn.category);
+    }
+
+    if(entryBreakdownEditor.isOn()){
+      var entryBdRows = entryBreakdownEditor.getRows();
+      if(entryBdRows.length) txn.breakdown = entryBdRows;
+    }
+
+    state.transactions.push(txn);
+    save();
+
+    document.getElementById("fAmount").value = "";
+    document.getElementById("fNote").value = "";
+    fCategory.value = "";
+    entryBreakdownEditor.reset();
+    currentDirection = "add";
+    Array.prototype.forEach.call(savingsDirectionToggle.children, function(b){
+      b.classList.toggle("active", b.dataset.direction === "add");
+    });
+
+    renderAll();
+    closeAddEntry();
+  });
+
+  // ---- add entry modal ----
+  var addEntryOverlay = document.getElementById("addEntryOverlay");
+
+  function openAddEntry(){
+    refreshFundSelect();
+    refreshCategoryList();
+    fDate.value = todayISO();
+    entryBreakdownEditor.reset();
+    document.getElementById("addEntryTabs").querySelector('button[data-tab="entry"]').click();
+    addEntryOverlay.classList.add("show");
+    document.getElementById("fAmount").focus();
+  }
+  function closeAddEntry(){
+    addEntryOverlay.classList.remove("show");
+  }
+  document.getElementById("openAddEntry").addEventListener("click", openAddEntry);
+  document.getElementById("closeAddEntryFromTemplates").addEventListener("click", closeAddEntry);
+  addEntryOverlay.addEventListener("click", function(e){
+    if(e.target === addEntryOverlay) closeAddEntry();
+  });
+
+  document.getElementById("addEntryTabs").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-tab]");
+    if(!btn) return;
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    document.getElementById("addEntryPaneEntry").classList.toggle("show", btn.dataset.tab === "entry");
+    document.getElementById("addEntryPaneTemplates").classList.toggle("show", btn.dataset.tab === "templates");
+    if(btn.dataset.tab === "templates") renderTemplates();
+  });
+
+  function saveCurrentFormAsTemplate(){
+    var amount = parseFloat(document.getElementById("fAmount").value);
+    if(!amount || amount <= 0){
+      document.getElementById("fAmount").focus();
+      return;
+    }
+    var name = prompt("Name this template:");
+    if(name === null) return;
+    name = name.trim();
+    if(!name) return;
+
+    var note = document.getElementById("fNote").value.trim();
+    var tpl = { id: uid(), name: name, type: currentType, amount: amount, note: note };
+    if(currentType === "savings"){
+      var dest = applySavingsDestination(amount, fFund.value);
+      tpl.category = dest.category;
+      tpl.fundId = dest.fundId;
+      tpl.goalId = dest.goalId;
+      tpl.direction = currentDirection;
+    } else {
+      tpl.category = fCategory.value.trim() || (currentType === "income" ? "Other income" : "Other");
+    }
+    if(entryBreakdownEditor.isOn()){
+      var saveTplBdRows = entryBreakdownEditor.getRows();
+      if(saveTplBdRows.length) tpl.breakdown = saveTplBdRows;
+    }
+    state.templates.push(tpl);
+    save();
+    renderTemplates();
+    alert("Saved as template: " + name);
+  }
+  document.getElementById("saveAsTemplateBtn").addEventListener("click", saveCurrentFormAsTemplate);
+
+  // ---- templates ----
+  var ntTypeToggle = document.getElementById("ntTypeToggle");
+  var ntCategoryField = document.getElementById("ntCategoryField");
+  var ntFundSelectWrap = document.getElementById("ntFundSelectWrap");
+  var ntCategory = document.getElementById("ntCategory");
+  var ntCategoryList = document.getElementById("ntCategoryList");
+  var ntFund = document.getElementById("ntFund");
+  var ntDirectionToggle = document.getElementById("ntDirectionToggle");
+  var ntCurrentType = "expense";
+  var ntCurrentDirection = "add";
+  var editingTemplateId = null;
+
+  function updateNtFormForType(){
+    if(ntCurrentType === "savings"){
+      ntCategoryField.style.display = "none";
+      ntFundSelectWrap.classList.add("show");
+      refreshFundSelect();
+    } else {
+      ntCategoryField.style.display = "";
+      ntFundSelectWrap.classList.remove("show");
+      var merged = categoryOptionsFor(ntCurrentType);
+      ntCategoryList.innerHTML = merged.map(function(c){ return '<option value="'+esc(c)+'">'; }).join("");
+    }
+  }
+
+  ntTypeToggle.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    ntCurrentType = btn.dataset.type;
+    Array.prototype.forEach.call(ntTypeToggle.children, function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    updateNtFormForType();
+  });
+
+  ntDirectionToggle.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    ntCurrentDirection = btn.dataset.direction;
+    Array.prototype.forEach.call(ntDirectionToggle.children, function(b){
+      b.classList.toggle("active", b === btn);
+    });
+  });
+
+  function resetNewTemplateForm(){
+    document.getElementById("ntName").value = "";
+    document.getElementById("ntAmount").value = "";
+    ntCategory.value = "";
+    document.getElementById("ntNote").value = "";
+    ntCurrentType = "expense";
+    ntCurrentDirection = "add";
+    Array.prototype.forEach.call(ntTypeToggle.children, function(b){
+      b.classList.toggle("active", b.dataset.type === "expense");
+    });
+    Array.prototype.forEach.call(ntDirectionToggle.children, function(b){
+      b.classList.toggle("active", b.dataset.direction === "add");
+    });
+    ntBreakdownEditor.reset();
+    updateNtFormForType();
+  }
+  updateNtFormForType();
+
+  var newTemplateOverlay = document.getElementById("newTemplateOverlay");
+  function openNewTemplateModal(){
+    resetNewTemplateForm();
+    refreshFundSelect();
+    newTemplateOverlay.classList.add("show");
+    document.getElementById("ntName").focus();
+  }
+  function closeNewTemplateModal(){
+    newTemplateOverlay.classList.remove("show");
+  }
+  document.getElementById("newTemplateFab").addEventListener("click", openNewTemplateModal);
+
+  // ---- print visibility options ----
+  var printOptionsOverlay = document.getElementById("printOptionsOverlay");
+  var printToggles = [
+    { checkbox: document.getElementById("printToggleBalance"), bodyClass: "print-hide-balance" },
+    { checkbox: document.getElementById("printToggleStats"), bodyClass: "print-hide-stats" },
+    { checkbox: document.getElementById("printToggleTimeline"), bodyClass: "print-hide-timeline" },
+    { checkbox: document.getElementById("printToggleFunds"), bodyClass: "print-hide-funds" },
+    { checkbox: document.getElementById("printToggleGoals"), bodyClass: "print-hide-goals" },
+    { checkbox: document.getElementById("printToggleBreakdown"), bodyClass: "print-hide-breakdown" },
+    { checkbox: document.getElementById("printToggleTransactions"), bodyClass: "print-hide-transactions" }
+  ];
+  printToggles.forEach(function(t){
+    document.body.classList.toggle(t.bodyClass, !t.checkbox.checked);
+    t.checkbox.addEventListener("change", function(){
+      document.body.classList.toggle(t.bodyClass, !t.checkbox.checked);
+    });
+  });
+
+  var printExpandBreakdownsCb = document.getElementById("printToggleExpandBreakdowns");
+  document.body.classList.toggle("print-expand-breakdowns", printExpandBreakdownsCb.checked);
+  printExpandBreakdownsCb.addEventListener("change", function(){
+    document.body.classList.toggle("print-expand-breakdowns", printExpandBreakdownsCb.checked);
+  });
+
+  document.getElementById("printBookBtn").addEventListener("click", function(){
+    printOptionsOverlay.classList.add("show");
+  });
+  document.getElementById("cancelPrintOptions").addEventListener("click", function(){
+    printOptionsOverlay.classList.remove("show");
+  });
+  document.getElementById("confirmPrintOptions").addEventListener("click", function(){
+    printOptionsOverlay.classList.remove("show");
+    window.print();
+  });
+  printOptionsOverlay.addEventListener("click", function(e){
+    if(e.target === printOptionsOverlay) printOptionsOverlay.classList.remove("show");
+  });
+  document.getElementById("cancelNewTemplate").addEventListener("click", closeNewTemplateModal);
+  newTemplateOverlay.addEventListener("click", function(e){
+    if(e.target === newTemplateOverlay) closeNewTemplateModal();
+  });
+
+  document.getElementById("createTemplateBtn").addEventListener("click", function(){
+    var name = document.getElementById("ntName").value.trim();
+    var amount = parseFloat(document.getElementById("ntAmount").value);
+    if(!name){ document.getElementById("ntName").focus(); return; }
+    if(!amount || amount <= 0){ document.getElementById("ntAmount").focus(); return; }
+    var note = document.getElementById("ntNote").value.trim();
+
+    var tpl = { id: uid(), name: name, type: ntCurrentType, amount: amount, note: note };
+    if(ntCurrentType === "savings"){
+      var dest = applySavingsDestination(amount, ntFund.value);
+      tpl.category = dest.category;
+      tpl.fundId = dest.fundId;
+      tpl.goalId = dest.goalId;
+      tpl.direction = ntCurrentDirection;
+    } else {
+      tpl.category = ntCategory.value.trim() || (ntCurrentType === "income" ? "Other income" : "Other");
+    }
+    if(ntBreakdownEditor.isOn()){
+      var ntBdRows = ntBreakdownEditor.getRows();
+      if(ntBdRows.length) tpl.breakdown = ntBdRows;
+    }
+
+    state.templates.push(tpl);
+    save();
+    resetNewTemplateForm();
+    closeNewTemplateModal();
+    renderAll();
+  });
+
+  function logTemplateEntry(tpl, date){
+    var txn = {
+      id: uid(),
+      type: tpl.type,
+      amount: tpl.amount,
+      date: date,
+      note: tpl.note || "",
+      category: tpl.category
+    };
+    if(tpl.type === "savings"){
+      txn.fundId = tpl.fundId || null;
+      txn.goalId = tpl.goalId || null;
+      txn.direction = tpl.direction || "add";
+      if(txn.fundId && !state.funds.find(function(f){ return f.id === txn.fundId; })) txn.fundId = null;
+      if(txn.goalId && !state.goals.find(function(g){ return g.id === txn.goalId; })) txn.goalId = null;
+    } else {
+      rememberCategory(tpl.type, tpl.category);
+    }
+    if(tpl.breakdown && tpl.breakdown.length){
+      txn.breakdown = tpl.breakdown.map(function(r){ return { note: r.note, amount: r.amount, date: r.date }; });
+    }
+    state.transactions.push(txn);
+    save();
+    renderAll();
+  }
+
+  var logDateOverlay = document.getElementById("logDateOverlay");
+  var logDateInput = document.getElementById("logDateInput");
+  var pendingLogTemplateId = null;
+
+  function openLogDateModal(tplId){
+    pendingLogTemplateId = tplId;
+    logDateInput.value = todayISO();
+    logDateOverlay.classList.add("show");
+    logDateInput.focus();
+  }
+  function closeLogDateModal(){
+    logDateOverlay.classList.remove("show");
+    pendingLogTemplateId = null;
+  }
+  document.getElementById("cancelLogDate").addEventListener("click", closeLogDateModal);
+  logDateOverlay.addEventListener("click", function(e){
+    if(e.target === logDateOverlay) closeLogDateModal();
+  });
+  document.getElementById("confirmLogDate").addEventListener("click", function(){
+    if(!pendingLogTemplateId) return;
+    var tpl = state.templates.find(function(t){ return t.id === pendingLogTemplateId; });
+    if(!tpl) { closeLogDateModal(); return; }
+    var date = logDateInput.value;
+    if(!date){ logDateInput.focus(); return; }
+    logTemplateEntry(tpl, date);
+    closeLogDateModal();
+  });
+
+  function renderTemplatesInto(containerId){
+    var list = document.getElementById(containerId);
+    if(!list) return;
+    if(!state.templates || state.templates.length === 0){
+      list.innerHTML = '<div class="txn-empty">No templates yet. Save one to re-log it in one tap.</div>';
+      return;
+    }
+
+    var typeLabel = { income: "Income", expense: "Expense", savings: "Savings" };
+
+    list.innerHTML = state.templates.map(function(t){
+      if(t.id === editingTemplateId){
+        var destValue = t.fundId ? ("fund:"+t.fundId) : (t.goalId ? ("goal:"+t.goalId) : "");
+        var directionRow = t.type === "savings" ? (
+          '<div class="field fund-select-wrap show">' +
+            '<label>Direction</label>' +
+            '<div class="type-toggle small-toggle tpl-edit-direction">' +
+              '<button type="button" data-direction="add" class="'+(t.direction !== "deduct" ? "active" : "")+'">Add</button>' +
+              '<button type="button" data-direction="deduct" class="'+(t.direction === "deduct" ? "active" : "")+'">Deduct</button>' +
+            '</div>' +
+            '<label>Save to</label>' +
+            '<select class="tpl-edit-fund" data-selected="'+destValue+'">' + fundOptionsHtml() + '</select>' +
+          '</div>'
+        ) : (
+          '<div class="field">' +
+            '<label>Category</label>' +
+            '<input type="text" class="tpl-e-category" list="tplCatList-'+containerId+'-'+t.id+'" value="'+esc(t.category||"")+'">' +
+            '<datalist id="tplCatList-'+containerId+'-'+t.id+'">' + categoryOptionsFor(t.type).map(function(c){ return '<option value="'+esc(c)+'">'; }).join("") + '</datalist>' +
+          '</div>'
+        );
+        return '' +
+          '<div class="fund editing" data-id="'+t.id+'">' +
+            '<div class="fund-edit-form">' +
+              '<div class="field">' +
+                '<label>Template name</label>' +
+                '<input type="text" class="tpl-e-name" value="'+esc(t.name)+'">' +
+              '</div>' +
+              '<div class="field amount">' +
+                '<label>Amount</label>' +
+                '<input type="number" class="tpl-e-amount" step="0.01" min="0" value="'+t.amount+'">' +
+              '</div>' +
+              directionRow +
+              '<div class="field">' +
+                '<label>Note</label>' +
+                '<input type="text" class="tpl-e-note" value="'+esc(t.note||"")+'">' +
+              '</div>' +
+              '<div class="field">' +
+                '<div class="toggle-row">' +
+                  '<span>Add breakdown</span>' +
+                  '<label class="switch">' +
+                    '<input type="checkbox" class="ebd-toggle-input">' +
+                    '<span class="switch-ui"></span>' +
+                  '</label>' +
+                '</div>' +
+              '</div>' +
+              '<div class="ebd-panel">' +
+                '<div class="ebd-head"><span>No.</span><span>Note</span><span>Amount</span><span>Date</span><span></span><span></span></div>' +
+                '<div class="ebd-rows"></div>' +
+                '<div class="ebd-panel-actions">' +
+                  '<button type="button" class="ebd-add">+ Add row</button>' +
+                  '<button type="button" class="ebd-remove">− Remove row</button>' +
+                '</div>' +
+                '<div class="ebd-total-row"><span>Breakdown total</span><span class="ebd-total">0.00</span></div>' +
+              '</div>' +
+              '<div class="fund-actions">' +
+                '<button class="primary tpl-save" data-id="'+t.id+'">Save</button>' +
+                '<button class="tpl-cancel" data-id="'+t.id+'">Cancel</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+      }
+
+      var isDeduct = t.type === "savings" && t.direction === "deduct";
+      var tplSign = (t.type === "expense" || isDeduct) ? "-" : "+";
+      var tplHasBd = t.breakdown && t.breakdown.length;
+      var tplDraggableAttr = containerId === "templatesList" ? ' draggable="true"' : "";
+      var tplHandle = containerId === "templatesList" ? '<span class="drag-handle no-book" aria-hidden="true">⠿</span>' : "";
+      return '' +
+        '<div class="fund drag-card amt-color '+t.type+'"'+tplDraggableAttr+' data-id="'+t.id+'">' +
+          '<div class="fund-top">' +
+            '<span class="fund-name-row">'+tplHandle+'<span class="fund-name">'+esc(t.name)+'<span class="goal-kind">'+typeLabel[t.type]+(isDeduct?" · deduct":"")+'</span>'+
+              (tplHasBd ? ' <button type="button" class="tpl-ebd-toggle" data-id="'+t.id+'" data-count="'+t.breakdown.length+'">▸ '+t.breakdown.length+' items</button>' : '') +
+            '</span></span>' +
+            '<span class="fund-amt num">'+tplSign+fmt(t.amount)+'</span>' +
+          '</div>' +
+          (tplHasBd ? '<div class="ebd-detail-wrap '+t.type+'" data-detail-for="'+t.id+'">'+breakdownDetailHtml(t.breakdown)+'</div>' : '') +
+          '<div class="fund-actions">' +
+            '<button class="primary tpl-log" data-id="'+t.id+'">Log today</button>' +
+            '<button class="tpl-log-date" data-id="'+t.id+'">Log on date…</button>' +
+            '<button class="tpl-edit" data-id="'+t.id+'">Edit</button>' +
+            '<button class="danger tpl-del" data-id="'+t.id+'">Delete</button>' +
+          '</div>' +
+        '</div>';
+    }).join("");
+
+    Array.prototype.forEach.call(list.querySelectorAll(".tpl-edit-fund[data-selected]"), function(sel){
+      sel.value = sel.dataset.selected;
+    });
+
+    var editingRow = list.querySelector('.fund.editing[data-id="'+editingTemplateId+'"]');
+    if(editingRow){
+      var editingTpl = state.templates.find(function(t){ return t.id === editingTemplateId; });
+      var editingAmountInput = editingRow.querySelector(".tpl-e-amount");
+      var editingEditor = createBreakdownEditor(editingRow, editingAmountInput, null);
+      editingEditor.load(editingTpl ? editingTpl.breakdown : null);
+      editingRow._ebdEditor = editingEditor;
+    }
+
+    Array.prototype.forEach.call(list.querySelectorAll(".tpl-ebd-toggle"), function(btn){
+      btn.addEventListener("click", function(){
+        var wrap = list.querySelector('.ebd-detail-wrap[data-detail-for="'+btn.dataset.id+'"]');
+        if(!wrap) return;
+        var open = wrap.classList.toggle("show");
+        btn.textContent = (open ? "▾ " : "▸ ") + btn.dataset.count + " items";
+      });
+    });
+
+    Array.prototype.forEach.call(list.querySelectorAll(".tpl-log"), function(btn){
+      btn.addEventListener("click", function(){
+        var tpl = state.templates.find(function(t){ return t.id === btn.dataset.id; });
+        if(!tpl) return;
+        logTemplateEntry(tpl, todayISO());
+      });
+    });
+
+    Array.prototype.forEach.call(list.querySelectorAll(".tpl-log-date"), function(btn){
+      btn.addEventListener("click", function(){
+        openLogDateModal(btn.dataset.id);
+      });
+    });
+
+    Array.prototype.forEach.call(list.querySelectorAll(".tpl-edit"), function(btn){
+      btn.addEventListener("click", function(){
+        editingTemplateId = btn.dataset.id;
+        renderTemplates();
+      });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll(".tpl-cancel"), function(btn){
+      btn.addEventListener("click", function(){
+        editingTemplateId = null;
+        renderTemplates();
+      });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll(".tpl-del"), function(btn){
+      btn.addEventListener("click", function(){
+        if(!askDelete("Delete this template?")) return;
+        state.templates = state.templates.filter(function(t){ return t.id !== btn.dataset.id; });
+        if(editingTemplateId === btn.dataset.id) editingTemplateId = null;
+        save();
+        renderAll();
+      });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll(".tpl-edit-direction"), function(toggle){
+      toggle.addEventListener("click", function(e){
+        var btn = e.target.closest("button");
+        if(!btn) return;
+        Array.prototype.forEach.call(toggle.children, function(b){
+          b.classList.toggle("active", b === btn);
+        });
+      });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll(".tpl-save"), function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.dataset.id;
+        var tpl = state.templates.find(function(t){ return t.id === id; });
+        if(!tpl) return;
+        var row = list.querySelector('.fund[data-id="'+id+'"]');
+        var name = row.querySelector(".tpl-e-name").value.trim();
+        var amount = parseFloat(row.querySelector(".tpl-e-amount").value);
+        if(!name){ row.querySelector(".tpl-e-name").focus(); return; }
+        if(!amount || amount <= 0){ row.querySelector(".tpl-e-amount").focus(); return; }
+        tpl.name = name;
+        tpl.note = row.querySelector(".tpl-e-note").value.trim();
+        if(row._ebdEditor && row._ebdEditor.isOn()){
+          var tplSaveBdRows = row._ebdEditor.getRows();
+          if(tplSaveBdRows.length){
+            tpl.breakdown = tplSaveBdRows;
+            amount = row._ebdEditor.sum() || amount;
+          } else {
+            delete tpl.breakdown;
+          }
+        } else {
+          delete tpl.breakdown;
+        }
+        tpl.amount = amount;
+        if(tpl.type === "savings"){
+          var dirToggle = row.querySelector(".tpl-edit-direction");
+          var activeBtn = dirToggle.querySelector("button.active");
+          tpl.direction = activeBtn ? activeBtn.dataset.direction : "add";
+          var fundSel = row.querySelector(".tpl-edit-fund");
+          var dest = applySavingsDestination(amount, fundSel.value);
+          tpl.category = dest.category;
+          tpl.fundId = dest.fundId;
+          tpl.goalId = dest.goalId;
+        } else {
+          tpl.category = row.querySelector(".tpl-e-category").value.trim() || tpl.category;
+        }
+        save();
+        editingTemplateId = null;
+        renderAll();
+      });
+    });
+  }
+
+  function renderTemplates(){
+    renderTemplatesInto("templatesList");
+    renderTemplatesInto("modalTemplatesList");
+  }
+
+  // ---- drag-and-drop reordering (funds / goals) ----
+  function enableDragReorder(container, getArray, onReorder){
+    var draggedId = null;
+
+    function clearDropMarkers(){
+      Array.prototype.forEach.call(container.querySelectorAll(".drag-over-top,.drag-over-bottom"), function(el){
+        el.classList.remove("drag-over-top", "drag-over-bottom");
+      });
+    }
+
+    container.addEventListener("dragstart", function(e){
+      var card = e.target.closest("[draggable='true']");
+      if(!card || !container.contains(card)) return;
+      draggedId = card.dataset.id;
+      card.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      try{ e.dataTransfer.setData("text/plain", draggedId); }catch(err){}
+    });
+
+    container.addEventListener("dragend", function(e){
+      var card = e.target.closest("[draggable='true']");
+      if(card) card.classList.remove("dragging");
+      clearDropMarkers();
+      draggedId = null;
+    });
+
+    container.addEventListener("dragover", function(e){
+      if(!draggedId) return;
+      var card = e.target.closest("[draggable='true']");
+      if(!card || !container.contains(card) || card.dataset.id === draggedId) return;
+      e.preventDefault();
+      var rect = card.getBoundingClientRect();
+      var before = (e.clientY - rect.top) < rect.height / 2;
+      clearDropMarkers();
+      card.classList.add(before ? "drag-over-top" : "drag-over-bottom");
+    });
+
+    container.addEventListener("drop", function(e){
+      if(!draggedId) return;
+      var card = e.target.closest("[draggable='true']");
+      if(!card || !container.contains(card) || card.dataset.id === draggedId){ draggedId = null; return; }
+      e.preventDefault();
+      var rect = card.getBoundingClientRect();
+      var before = (e.clientY - rect.top) < rect.height / 2;
+      var arr = getArray();
+      var fromIdx = arr.findIndex(function(x){ return x.id === draggedId; });
+      if(fromIdx === -1) return;
+      var item = arr.splice(fromIdx, 1)[0];
+      var toIdx = arr.findIndex(function(x){ return x.id === card.dataset.id; });
+      if(toIdx === -1) toIdx = arr.length;
+      arr.splice(before ? toIdx : toIdx + 1, 0, item);
+      clearDropMarkers();
+      draggedId = null;
+      onReorder();
+    });
+  }
+
+  // ---- funds ----
+  var newFundToggle = document.getElementById("newFundToggle");
+  var newFundForm = document.getElementById("newFundForm");
+  var editingFundId = null;
+
+  function resetNewFundForm(){
+    document.getElementById("nfName").value = "";
+    document.getElementById("nfTarget").value = "";
+    document.getElementById("nfStart").value = "";
+    newFundForm.classList.remove("show");
+  }
+
+  newFundToggle.addEventListener("click", function(){
+    newFundForm.classList.toggle("show");
+  });
+
+  document.getElementById("cancelFundBtn").addEventListener("click", function(){
+    resetNewFundForm();
+  });
+
+  document.getElementById("createFundBtn").addEventListener("click", function(){
+    var name = document.getElementById("nfName").value.trim();
+    var target = parseFloat(document.getElementById("nfTarget").value) || 0;
+    var start = parseFloat(document.getElementById("nfStart").value) || 0;
+    if(!name) { document.getElementById("nfName").focus(); return; }
+
+    state.funds.push({ id: uid(), name: name, target: target, startingBalance: start, current: start });
+    save();
+    resetNewFundForm();
+    renderAll();
+  });
+
+  function renderFunds(){
+    var list = document.getElementById("fundsList");
+    if(state.funds.length === 0){
+      list.innerHTML = '<div class="txn-empty">No funds yet. Create one to start a savings goal.</div>';
+      refreshFundSelect();
+      return;
+    }
+
+    list.innerHTML = state.funds.map(function(f){
+      if(f.id === editingFundId){
+        return '' +
+          '<div class="fund editing" data-id="'+f.id+'">' +
+            '<div class="fund-edit-form">' +
+              '<div class="field">' +
+                '<label>Fund name</label>' +
+                '<input type="text" class="fe-name" value="'+esc(f.name)+'">' +
+              '</div>' +
+              '<div class="row">' +
+                '<div class="field">' +
+                  '<label>Target</label>' +
+                  '<input type="number" class="fe-target" step="0.01" min="0" value="'+(f.target||0)+'">' +
+                '</div>' +
+                '<div class="field">' +
+                  '<label>Starting</label>' +
+                  '<input type="number" class="fe-current" step="0.01" value="'+(f.startingBalance||0)+'">' +
+                '</div>' +
+              '</div>' +
+              '<div class="fund-actions">' +
+                '<button class="primary fe-save" data-id="'+f.id+'">Save</button>' +
+                '<button class="fe-cancel" data-id="'+f.id+'">Cancel</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+      }
+
+      var displayCurrent = computeFundCurrent(f);
+      var pct = f.target > 0 ? Math.min(100, (displayCurrent / f.target) * 100) : 0;
+      var draggableAttr = app.viewMode === "book" ? "" : ' draggable="true"';
+      return '' +
+        '<div class="fund drag-card"'+draggableAttr+' data-id="'+f.id+'">' +
+          '<div class="fund-top">' +
+            '<span class="fund-name-row"><span class="drag-handle no-book" aria-hidden="true">⠿</span><span class="fund-name">'+esc(f.name)+'</span></span>' +
+            '<span class="fund-amt num">'+fmt(displayCurrent)+(f.target ? ' <span class="cur">/ '+fmt(f.target)+'</span>' : '')+'</span>' +
+          '</div>' +
+          '<div class="bar"><div class="bar-fill" style="width:'+pct+'%"></div></div>' +
+          '<div class="fund-actions">' +
+            '<button class="fe-edit" data-id="'+f.id+'">Edit</button>' +
+            '<button class="danger fund-del" data-id="'+f.id+'">Delete</button>' +
+          '</div>' +
+        '</div>';
+    }).join("");
+
+    Array.prototype.forEach.call(list.querySelectorAll(".fe-edit"), function(btn){
+      btn.addEventListener("click", function(){
+        editingFundId = btn.dataset.id;
+        renderFunds();
+      });
+    });
+
+    Array.prototype.forEach.call(list.querySelectorAll(".fe-cancel"), function(btn){
+      btn.addEventListener("click", function(){
+        editingFundId = null;
+        renderFunds();
+      });
+    });
+
+    Array.prototype.forEach.call(list.querySelectorAll(".fe-save"), function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.dataset.id;
+        var fund = state.funds.find(function(f){ return f.id === id; });
+        if(!fund) return;
+        var row = list.querySelector('.fund[data-id="'+id+'"]');
+        var name = row.querySelector(".fe-name").value.trim();
+        var target = parseFloat(row.querySelector(".fe-target").value) || 0;
+        var starting = parseFloat(row.querySelector(".fe-current").value) || 0;
+        if(!name) { row.querySelector(".fe-name").focus(); return; }
+        fund.name = name;
+        fund.target = target;
+        fund.startingBalance = starting;
+        fund.current = computeFundCurrent(fund);
+        save();
+        editingFundId = null;
+        renderAll();
+      });
+    });
+
+    Array.prototype.forEach.call(list.querySelectorAll(".fund-del"), function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.dataset.id;
+        if(!askDelete("Delete this fund? Its logged savings entries will stay in your transactions.")) return;
+        state.funds = state.funds.filter(function(f){ return f.id !== id; });
+        if(editingFundId === id) editingFundId = null;
+        save();
+        renderAll();
+      });
+    });
+
+    refreshFundSelect();
+  }
+
+  // ---- goals ----
+  var newGoalToggle = document.getElementById("newGoalToggle");
+  var newGoalForm = document.getElementById("newGoalForm");
+  var editingGoalId = null;
+  var newGoalKind = "short";
+
+  document.getElementById("goalKindToggle").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    newGoalKind = btn.dataset.kind;
+    Array.prototype.forEach.call(this.children, function(b){
+      b.classList.toggle("active", b === btn);
+    });
+  });
+
+  function resetNewGoalForm(){
+    document.getElementById("ngName").value = "";
+    document.getElementById("ngTarget").value = "";
+    document.getElementById("ngStart").value = "";
+    newGoalKind = "short";
+    Array.prototype.forEach.call(document.getElementById("goalKindToggle").children, function(b){
+      b.classList.toggle("active", b.dataset.kind === "short");
+    });
+    newGoalForm.classList.remove("show");
+  }
+
+  newGoalToggle.addEventListener("click", function(){
+    newGoalForm.classList.toggle("show");
+  });
+
+  document.getElementById("cancelGoalBtn").addEventListener("click", function(){
+    resetNewGoalForm();
+  });
+
+  document.getElementById("createGoalBtn").addEventListener("click", function(){
+    var name = document.getElementById("ngName").value.trim();
+    var target = parseFloat(document.getElementById("ngTarget").value) || 0;
+    var start = parseFloat(document.getElementById("ngStart").value) || 0;
+    if(!name) { document.getElementById("ngName").focus(); return; }
+    if(!state.goals) state.goals = [];
+    state.goals.push({ id: uid(), name: name, kind: newGoalKind, target: target, startingBalance: start, current: start });
+    save();
+    resetNewGoalForm();
+    renderAll();
+  });
+
+  function renderGoals(){
+    var list = document.getElementById("goalsList");
+    if(!state.goals) state.goals = [];
+    if(state.goals.length === 0){
+      list.innerHTML = '<div class="txn-empty">No goals yet. Add a short or long term target.</div>';
+      refreshFundSelect();
+      return;
+    }
+
+    list.innerHTML = state.goals.map(function(g){
+      if(g.id === editingGoalId){
+        return '' +
+          '<div class="fund editing" data-id="'+g.id+'">' +
+            '<div class="fund-edit-form">' +
+              '<div class="field">' +
+                '<label>Goal name</label>' +
+                '<input type="text" class="ge-name" value="'+esc(g.name)+'">' +
+              '</div>' +
+              '<div class="field">' +
+                '<label>Horizon</label>' +
+                '<select class="ge-kind">' +
+                  '<option value="short"'+(g.kind==="short"?" selected":"")+'>Short term</option>' +
+                  '<option value="long"'+(g.kind==="long"?" selected":"")+'>Long term</option>' +
+                '</select>' +
+              '</div>' +
+              '<div class="row">' +
+                '<div class="field">' +
+                  '<label>Target</label>' +
+                  '<input type="number" class="ge-target" step="0.01" min="0" value="'+(g.target||0)+'">' +
+                '</div>' +
+                '<div class="field">' +
+                  '<label>Starting</label>' +
+                  '<input type="number" class="ge-current" step="0.01" value="'+(g.startingBalance||0)+'">' +
+                '</div>' +
+              '</div>' +
+              '<div class="fund-actions">' +
+                '<button class="primary ge-save" data-id="'+g.id+'">Save</button>' +
+                '<button class="ge-cancel" data-id="'+g.id+'">Cancel</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+      }
+
+      var displayCurrent = computeGoalCurrent(g);
+      var pct = g.target > 0 ? Math.min(100, (displayCurrent / g.target) * 100) : 0;
+      var kindLabel = g.kind === "long" ? "Long term" : "Short term";
+      var draggableAttr = app.viewMode === "book" ? "" : ' draggable="true"';
+      return '' +
+        '<div class="fund drag-card"'+draggableAttr+' data-id="'+g.id+'">' +
+          '<div class="fund-top">' +
+            '<span class="fund-name-row"><span class="drag-handle no-book" aria-hidden="true">⠿</span><span class="fund-name">'+esc(g.name)+'<span class="goal-kind">'+kindLabel+'</span></span></span>' +
+            '<span class="fund-amt num">'+fmt(displayCurrent)+(g.target ? ' <span class="cur">/ '+fmt(g.target)+'</span>' : '')+'</span>' +
+          '</div>' +
+          '<div class="bar"><div class="bar-fill" style="width:'+pct+'%"></div></div>' +
+          '<div class="fund-actions">' +
+            '<button class="ge-edit" data-id="'+g.id+'">Edit</button>' +
+            '<button class="danger goal-del" data-id="'+g.id+'">Delete</button>' +
+          '</div>' +
+        '</div>';
+    }).join("");
+
+    Array.prototype.forEach.call(list.querySelectorAll(".ge-edit"), function(btn){
+      btn.addEventListener("click", function(){
+        editingGoalId = btn.dataset.id;
+        renderGoals();
+      });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll(".ge-cancel"), function(btn){
+      btn.addEventListener("click", function(){
+        editingGoalId = null;
+        renderGoals();
+      });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll(".ge-save"), function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.dataset.id;
+        var goal = state.goals.find(function(g){ return g.id === id; });
+        if(!goal) return;
+        var row = list.querySelector('.fund[data-id="'+id+'"]');
+        var name = row.querySelector(".ge-name").value.trim();
+        if(!name) { row.querySelector(".ge-name").focus(); return; }
+        goal.name = name;
+        goal.kind = row.querySelector(".ge-kind").value;
+        goal.target = parseFloat(row.querySelector(".ge-target").value) || 0;
+        goal.startingBalance = parseFloat(row.querySelector(".ge-current").value) || 0;
+        goal.current = computeGoalCurrent(goal);
+        save();
+        editingGoalId = null;
+        renderAll();
+      });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll(".goal-del"), function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.dataset.id;
+        if(!askDelete("Delete this goal? Its logged savings entries will stay in your transactions.")) return;
+        state.goals = state.goals.filter(function(g){ return g.id !== id; });
+        if(editingGoalId === id) editingGoalId = null;
+        save();
+        renderAll();
+      });
+    });
+    refreshFundSelect();
+  }
+
+  enableDragReorder(document.getElementById("fundsList"), function(){ return state.funds; }, function(){ save(); renderFunds(); });
+  enableDragReorder(document.getElementById("goalsList"), function(){ return state.goals; }, function(){ save(); renderGoals(); });
+  enableDragReorder(document.getElementById("templatesList"), function(){ return state.templates; }, function(){ save(); renderTemplates(); });
+
+  // ---- transactions list ----
+  var txnYearSelect = document.getElementById("txnYearSelect");
+  var txnMonthSelect = document.getElementById("txnMonthSelect");
+  var txnFilterYear = viewYear;
+  var txnFilterMonth = "all";
+
+  var MONTH_NAMES_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var WEEKDAY_NAMES_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  txnMonthSelect.innerHTML = '<option value="all">All months</option>' +
+    MONTH_NAMES_SHORT.map(function(m,i){ return '<option value="'+i+'">'+m+'</option>'; }).join("");
+
+  function refreshYearOptions(){
+    var years = {};
+    state.transactions.forEach(function(t){ years[t.date.slice(0,4)] = true; });
+    years[String(viewYear)] = true;
+    var yearList = Object.keys(years).sort();
+
+    var prevSelection = String(txnFilterYear);
+    txnYearSelect.innerHTML = yearList.map(function(y){ return '<option value="'+y+'">'+y+'</option>'; }).join("");
+    if(yearList.indexOf(prevSelection) === -1){
+      txnFilterYear = parseInt(yearList[yearList.length-1], 10);
+    }
+    txnYearSelect.value = String(txnFilterYear);
+    txnMonthSelect.value = txnFilterMonth;
+  }
+
+  txnYearSelect.addEventListener("change", function(){
+    txnFilterYear = parseInt(txnYearSelect.value, 10);
+    renderTransactions();
+  });
+  txnMonthSelect.addEventListener("change", function(){
+    txnFilterMonth = txnMonthSelect.value === "all" ? "all" : parseInt(txnMonthSelect.value, 10);
+    renderTransactions();
+  });
+
+  var txnSearchInput = document.getElementById("txnSearch");
+  var txnSearchClear = document.getElementById("txnSearchClear");
+  var txnSearchQuery = "";
+  txnSearchInput.addEventListener("input", function(){
+    txnSearchQuery = txnSearchInput.value.trim().toLowerCase();
+    txnSearchClear.style.display = txnSearchQuery ? "" : "none";
+    renderTransactions();
+  });
+  txnSearchClear.addEventListener("click", function(){
+    txnSearchInput.value = "";
+    txnSearchQuery = "";
+    txnSearchClear.style.display = "none";
+    txnSearchInput.focus();
+    renderTransactions();
+  });
+
+  function renderTransactions(){
+    var container = document.getElementById("txnList");
+    var searching = txnSearchQuery.length > 0;
+
+    var source = state.transactions.filter(function(t){
+      if(searching) return true; // search looks across all entries, ignoring the year/month filter
+      var y = parseInt(t.date.slice(0,4), 10);
+      var m = parseInt(t.date.slice(5,7), 10) - 1;
+      if(app.viewMode === "book"){
+        return y === viewYear && m === viewMonth;
+      }
+      if(y !== txnFilterYear) return false;
+      if(txnFilterMonth !== "all" && m !== txnFilterMonth) return false;
+      return true;
+    });
+
+    if(searching){
+      source = source.filter(function(t){
+        var amountStr = String(t.amount);
+        var amountFormatted = fmt(t.amount).toLowerCase();
+        var cat = (t.category || "").toLowerCase();
+        var note = (t.note || "").toLowerCase();
+        return amountStr.indexOf(txnSearchQuery) !== -1 ||
+          amountFormatted.indexOf(txnSearchQuery) !== -1 ||
+          cat.indexOf(txnSearchQuery) !== -1 ||
+          note.indexOf(txnSearchQuery) !== -1;
+      });
+    }
+
+    var monthTxns = source.sort(function(a,b){
+      return b.date.localeCompare(a.date) || 0;
+    });
+
+    if(monthTxns.length === 0){
+      container.innerHTML = '<div class="txn-empty">' + (searching ? "No entries match your search." : "No entries for this period.") + '</div>';
+      return;
+    }
+
+    var groups = {};
+    var order = [];
+    monthTxns.forEach(function(t){
+      if(!groups[t.date]){ groups[t.date] = []; order.push(t.date); }
+      groups[t.date].push(t);
+    });
+
+    container.innerHTML = order.map(function(date){
+      var d = new Date(date + "T00:00:00");
+      var heading = MONTH_NAMES_SHORT[d.getMonth()] + " " + d.getDate() + " " + d.getFullYear() + " - " + WEEKDAY_NAMES_SHORT[d.getDay()];
+      var rows = groups[date].map(function(t){
+        var isDeduct = t.type === "savings" && t.direction === "deduct";
+        var sign = (t.type === "expense" || isDeduct) ? "-" : "+";
+        var catLabel = esc(t.category) + (isDeduct ? ' <span class="txn-deduct-tag">deducted</span>' : "");
+        var hasBd = t.breakdown && t.breakdown.length;
+        return '' +
+          '<div class="txn-row amt-color '+t.type+'" data-id="'+t.id+'">' +
+            '<div class="txn-main">' +
+              '<div class="txn-note">'+esc(t.note || t.category)+
+                (hasBd ? ' <button type="button" class="txn-ebd-toggle" data-id="'+t.id+'" data-count="'+t.breakdown.length+'">▸ '+t.breakdown.length+' items</button>' : '') +
+              '</div>' +
+              '<div class="txn-cat">'+catLabel+'</div>' +
+            '</div>' +
+            '<div class="txn-amt num">'+sign+fmt(Math.abs(t.amount))+'</div>' +
+            '<div class="txn-actions">' +
+              '<button class="txn-edit" data-id="'+t.id+'" aria-label="edit entry" title="Edit this entry">✎</button>' +
+              '<button class="txn-dup" data-id="'+t.id+'" aria-label="duplicate entry" title="Duplicate to a new date">⧉</button>' +
+              '<button class="txn-del" data-id="'+t.id+'" aria-label="delete entry">×</button>' +
+            '</div>' +
+          '</div>' +
+          (hasBd ? '<div class="ebd-detail-wrap '+t.type+'" data-detail-for="'+t.id+'">'+breakdownDetailHtml(t.breakdown)+'</div>' : '');
+      }).join("");
+      return '<div class="txn-date-group"><div class="txn-date-heading">'+heading+'</div>'+rows+'</div>';
+    }).join("");
+
+    Array.prototype.forEach.call(container.querySelectorAll(".txn-ebd-toggle"), function(btn){
+      btn.addEventListener("click", function(){
+        var wrap = container.querySelector('.ebd-detail-wrap[data-detail-for="'+btn.dataset.id+'"]');
+        if(!wrap) return;
+        var open = wrap.classList.toggle("show");
+        btn.textContent = (open ? "▾ " : "▸ ") + btn.dataset.count + " items";
+      });
+    });
+
+    Array.prototype.forEach.call(container.querySelectorAll(".txn-edit"), function(btn){
+      btn.addEventListener("click", function(){
+        openEditTransaction(btn.dataset.id);
+      });
+    });
+
+    Array.prototype.forEach.call(container.querySelectorAll(".txn-dup"), function(btn){
+      btn.addEventListener("click", function(){
+        openDuplicate(btn.dataset.id);
+      });
+    });
+
+    Array.prototype.forEach.call(container.querySelectorAll(".txn-del"), function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.dataset.id;
+        if(!askDelete("Delete this entry?")) return;
+        state.transactions = state.transactions.filter(function(t){ return t.id !== id; });
+        save();
+        renderAll();
+      });
+    });
+  }
+
+  // ---- breakdown ----
+  var breakdownScope = "month";
+  var PIE_PALETTE = ["#b5654a", "#c9a66b", "#7c9a7e", "#6f8fa3", "#c98f65", "#9b83ae", "#8a9a5b", "#c1789a", "#7a8a99", "#af9a5e"];
+
+  document.getElementById("breakdownScopeToggle").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    breakdownScope = btn.dataset.scope;
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    renderBreakdown();
+  });
+
+  function renderBreakdown(){
+    var section = document.getElementById("breakdownSection");
+    var list = document.getElementById("breakdownList");
+    var pieHost = document.getElementById("breakdownPie");
+    var heading = section.querySelector(".section-head h2");
+
+    var expenses = state.transactions.filter(function(t){
+      if(t.type !== "expense") return false;
+      return breakdownScope === "total" ? true : txnInView(t);
+    });
+
+    heading.textContent = "Where it went" + (breakdownScope === "month" ? " — this month" : " — all time");
+
+    if(expenses.length === 0){
+      list.innerHTML = '<div class="txn-empty">No expenses to show yet.</div>';
+      pieHost.innerHTML = "";
+      return;
+    }
+
+    var byCat = {};
+    expenses.forEach(function(t){
+      byCat[t.category] = (byCat[t.category] || 0) + t.amount;
+    });
+    var total = Object.values(byCat).reduce(function(a,b){ return a+b; }, 0);
+    var max = Math.max.apply(null, Object.values(byCat));
+    var cats = Object.keys(byCat).sort(function(a,b){ return byCat[b] - byCat[a]; });
+    var colorFor = {};
+    cats.forEach(function(c,i){ colorFor[c] = PIE_PALETTE[i % PIE_PALETTE.length]; });
+
+    // ---- legend / bar rows ----
+    list.innerHTML = cats.map(function(c){
+      var pct = max > 0 ? (byCat[c] / max) * 100 : 0;
+      var share = total > 0 ? Math.round((byCat[c] / total) * 100) : 0;
+      return '' +
+        '<div class="breakdown-row">' +
+          '<span class="dot" style="background:'+colorFor[c]+'"></span>' +
+          '<div class="cat">'+esc(c)+'</div>' +
+          '<div class="bar"><div class="bar-fill" style="background:'+colorFor[c]+'; width:'+pct+'%"></div></div>' +
+          '<div class="amt num">'+fmt(byCat[c])+' <span style="color:var(--text-faint)">'+share+'%</span></div>' +
+        '</div>';
+    }).join("");
+
+    // ---- donut pie ----
+    var r = 40, cx = 50, cy = 50, sw = 18;
+    var C = 2 * Math.PI * r;
+    var cum = 0;
+    var slices = cats.map(function(c){
+      var frac = total > 0 ? byCat[c] / total : 0;
+      var len = frac * C;
+      var dash = len.toFixed(2) + " " + (C - len).toFixed(2);
+      var offset = (-cum).toFixed(2);
+      cum += len;
+      var pct = Math.round(frac * 100);
+      return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+colorFor[c]+'" stroke-width="'+sw+'" ' +
+        'stroke-dasharray="'+dash+'" stroke-dashoffset="'+offset+'" transform="rotate(-90 '+cx+' '+cy+')">' +
+        '<title>'+esc(c)+': '+fmt(byCat[c])+' ('+pct+'%)</title></circle>';
+    }).join("");
+
+    var pieSvg = '<svg viewBox="0 0 100 100" role="img" aria-label="Expense breakdown by category">' + slices + '</svg>';
+    pieHost.innerHTML = pieSvg +
+      '<div class="pie-center"><div class="pc-amt num">'+fmt(total)+'</div><div class="pc-label">'+(breakdownScope==="month"?"this month":"total")+'</div></div>';
+  }
+
+  // ---- hero / stats ----
+  var balanceScope = "monthly";
+
+  document.getElementById("balanceScopeToggle").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    balanceScope = btn.dataset.scope;
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    renderHero();
+    renderTimeline();
+  });
+
+  function renderHero(){
+    var scope = app.viewMode === "book" ? "monthly" : balanceScope;
+    var scopedTxns;
+    if(scope === "yearly"){
+      scopedTxns = state.transactions.filter(function(t){ return parseInt(t.date.slice(0,4), 10) === viewYear; });
+    } else if(scope === "overall"){
+      scopedTxns = state.transactions;
+    } else {
+      scopedTxns = state.transactions.filter(txnInView);
+    }
+
+    var income = 0, expense = 0, savings = 0;
+    var incomeCount = 0, expenseCount = 0, savingsCount = 0;
+    scopedTxns.forEach(function(t){
+      if(t.type === "income"){ income += t.amount; incomeCount++; }
+      else if(t.type === "expense"){ expense += t.amount; expenseCount++; }
+      else if(t.type === "savings"){ savings += signedSavingsAmount(t); savingsCount++; }
+    });
+    var net = income - expense - savings;
+
+    var heroFigure = document.getElementById("heroFigure");
+    heroFigure.textContent = fmt(net);
+    heroFigure.classList.toggle("negative", net < 0);
+
+    var labelSuffix = scope === "yearly" ? String(viewYear) : scope === "overall" ? "all time" : (MONTH_NAMES[viewMonth] + " " + viewYear);
+    document.getElementById("heroLabel").textContent = "net balance — " + labelSuffix;
+    document.getElementById("monthLabel").textContent = MONTH_NAMES[viewMonth] + " " + viewYear;
+
+    var printName = (state.ledgerName || "Ledger").trim() || "Ledger";
+    document.getElementById("printTitle").textContent = printName + " — " + MONTH_NAMES[viewMonth] + " " + viewYear;
+
+    var totalCount = incomeCount + expenseCount + savingsCount;
+    document.getElementById("printMeta").textContent = totalCount + " transaction" + (totalCount === 1 ? "" : "s") +
+      "  ·  " + incomeCount + " income  ·  " + expenseCount + " expense  ·  " + savingsCount + " savings";
+
+    document.getElementById("statIncome").textContent = fmt(income);
+    document.getElementById("statExpense").textContent = fmt(expense);
+    document.getElementById("statSaved").textContent = fmt(savings);
+  }
+
+  // ---- timeline (all-time, by month) ----
+  function axisLabel(key){
+    var d = new Date(key + "-01T00:00:00");
+    return MONTH_NAMES_SHORT[d.getMonth()] + " " + String(d.getFullYear()).slice(2);
+  }
+
+  function bindTimelineHost(host, points, x, W){
+    var tooltip = host.querySelector(".tl-tooltip");
+    var guide = host.querySelector(".tl-guide");
+    var hitPoints = host.querySelectorAll(".tl-hit");
+
+    function showAt(i){
+      var p = points[i];
+      var d = new Date(p.key + "-01T00:00:00");
+      var monthLabel = d.toLocaleDateString(undefined, { month:"long", year:"numeric" });
+      var px = x(i);
+
+      guide.setAttribute("x1", px); guide.setAttribute("x2", px);
+      guide.style.opacity = 1;
+      hitPoints.forEach(function(c, ci){ c.style.opacity = ci === i ? 1 : 0; });
+
+      tooltip.innerHTML =
+        '<div class="tl-month">'+monthLabel+'</div>' +
+        '<div class="tl-row income"><span>Income</span><span>'+fmt(p.income)+'</span></div>' +
+        '<div class="tl-row expense"><span>Expenses</span><span>'+fmt(p.expense)+'</span></div>' +
+        '<div class="tl-row net"><span>Net</span><span>'+fmt(p.net)+'</span></div>' +
+        '<div class="tl-row cumulative"><span>Cumulative</span><span>'+fmt(p.cumulative)+'</span></div>';
+
+      var pct = points.length > 1 ? (px / W) * 100 : 50;
+      tooltip.style.left = Math.min(96, Math.max(4, pct)) + "%";
+      tooltip.style.top = "-8px";
+      tooltip.classList.add("show");
+    }
+
+    function hideAll(){
+      guide.style.opacity = 0;
+      hitPoints.forEach(function(c){ c.style.opacity = 0; });
+      tooltip.classList.remove("show");
+    }
+
+    Array.prototype.forEach.call(host.querySelectorAll(".tl-hover-col"), function(col){
+      var i = parseInt(col.dataset.i, 10);
+      col.addEventListener("mouseenter", function(){ showAt(i); });
+      col.addEventListener("focus", function(){ showAt(i); });
+      col.addEventListener("click", function(){
+        var d = new Date(points[i].key + "-01T00:00:00");
+        viewYear = d.getFullYear();
+        viewMonth = d.getMonth();
+        txnFilterYear = viewYear;
+        txnFilterMonth = viewMonth;
+        renderAll();
+      });
+    });
+    host.addEventListener("mouseleave", hideAll);
+  }
+
+  function renderTimeline(){
+    var host = document.getElementById("timelineChart");
+
+    if(state.transactions.length === 0){
+      host.innerHTML = '<div class="timeline-empty">Add a few entries and your history will show up here.</div>';
+      return;
+    }
+
+    var byMonth = {};
+    state.transactions.forEach(function(t){
+      var key = t.date.slice(0,7);
+      if(!byMonth[key]) byMonth[key] = { income:0, expense:0, savings:0 };
+      byMonth[key][t.type] += (t.type === "savings" ? signedSavingsAmount(t) : t.amount);
+    });
+
+    var keys = Object.keys(byMonth).sort();
+    if(keys.length > 1){
+      var filled = [];
+      var cursor = new Date(keys[0] + "-01T00:00:00");
+      var end = new Date(keys[keys.length-1] + "-01T00:00:00");
+      while(cursor <= end){
+        var k = cursor.getFullYear() + "-" + String(cursor.getMonth()+1).padStart(2,"0");
+        filled.push(k);
+        cursor.setMonth(cursor.getMonth()+1);
+      }
+      keys = filled;
+    }
+
+    var running = 0;
+    var points = keys.map(function(k){
+      var m = byMonth[k] || { income:0, expense:0, savings:0 };
+      var net = m.income - m.expense - m.savings;
+      running += net;
+      return { key:k, net: net, income:m.income, expense:m.expense, cumulative: running };
+    });
+
+    var W = Math.max(host.clientWidth || 700, 300);
+    var H = 160;
+    var padL = 22, padR = 22, padTop = 16, padBot = 28;
+    var plotW = W - padL - padR;
+    var plotH = H - padTop - padBot;
+    function x(i){ return points.length === 1 ? padL + plotW/2 : padL + (plotW * i/(points.length-1)); }
+    var showEvery = Math.ceil(points.length / 8) || 1;
+    var colW = points.length > 1 ? plotW/(points.length-1) : plotW;
+    var currentMonthIdx = points.findIndex(function(p){ return p.key === monthKey(viewYear, viewMonth); });
+    var yearIdxs = [];
+    points.forEach(function(p, i){ if(p.key.slice(0,4) === String(viewYear)) yearIdxs.push(i); });
+
+    function dotSize(i){
+      if(balanceScope === "yearly"){
+        if(i === currentMonthIdx) return { r: 5, op: 1 };
+        if(yearIdxs.indexOf(i) !== -1) return { r: 3.4, op: 0.9 };
+        return { r: 2, op: 0.45 };
+      }
+      if(i === currentMonthIdx) return { r: 4, op: 0.95 };
+      return { r: 2, op: 0.55 };
+    }
+
+    function highlightRect(){
+      if(balanceScope !== "yearly" || yearIdxs.length === 0) return "";
+      var xStart = Math.max(padL, x(yearIdxs[0]) - colW/2);
+      var xEnd = Math.min(W - padR, x(yearIdxs[yearIdxs.length-1]) + colW/2);
+      return '<rect x="'+xStart.toFixed(1)+'" y="'+padTop+'" width="'+(xEnd-xStart).toFixed(1)+'" height="'+plotH+'" fill="var(--gold)" opacity="0.09" rx="3"/>';
+    }
+
+    function labeledLines(){
+      return points.map(function(p,i){
+        if(i % showEvery !== 0 && i !== points.length-1) return "";
+        return '<line x1="'+x(i).toFixed(1)+'" y1="'+padTop+'" x2="'+x(i).toFixed(1)+'" y2="'+(H-padBot)+'" stroke="var(--rule-strong)" stroke-width="1" opacity="0.45"/>';
+      }).join("");
+    }
+
+    function axisLabels(){
+      return points.map(function(p,i){
+        if(i % showEvery !== 0 && i !== points.length-1) return "";
+        return '<text class="month-axis-label" x="'+x(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">'+axisLabel(p.key)+'</text>';
+      }).join("");
+    }
+
+    function hoverCols(){
+      return points.map(function(p,i){
+        var colX = Math.max(0, x(i) - colW/2);
+        var d = new Date(p.key + "-01T00:00:00");
+        var label = d.toLocaleDateString(undefined, { month:"long", year:"numeric" });
+        return '<rect class="tl-hover-col" tabindex="0" role="button" aria-label="'+label+'" data-i="'+i+'" x="'+colX.toFixed(1)+'" y="'+padTop+'" width="'+colW.toFixed(1)+'" height="'+plotH+'"/>';
+      }).join("");
+    }
+
+    // income / expense / net — small scale
+    var vals = [];
+    points.forEach(function(p){ vals.push(p.net, p.income, -p.expense); });
+    var maxAbs = Math.max.apply(null, vals.map(Math.abs).concat([1]));
+    var yZero = padTop + plotH/2;
+    var yScale = (plotH/2) / (maxAbs * 1.15);
+    function yFor(v){ return yZero - v*yScale; }
+    function pathFor(key){
+      return points.map(function(p,i){
+        return (i===0?"M":"L") + x(i).toFixed(1) + "," + yFor(p[key]).toFixed(1);
+      }).join(" ");
+    }
+
+    // cumulative net — independent scale, sharing the same plot area
+    var cumVals = points.map(function(p){ return p.cumulative; });
+    var cumMin = Math.min.apply(null, cumVals.concat([0]));
+    var cumMax = Math.max.apply(null, cumVals.concat([1]));
+    var cumSpan = Math.max(cumMax - cumMin, 1) * 1.15;
+    function yCum(v){ return padTop + plotH - ((v - cumMin) / cumSpan) * plotH; }
+    var cumPath = points.map(function(p,i){
+      return (i===0?"M":"L") + x(i).toFixed(1) + "," + yCum(p.cumulative).toFixed(1);
+    }).join(" ");
+
+    var svg = '' +
+      '<svg class="timeline-chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Monthly income, expenses, net balance and cumulative net">' +
+        highlightRect() +
+        labeledLines() +
+        '<line x1="'+padL+'" y1="'+yZero+'" x2="'+(W-padR)+'" y2="'+yZero+'" stroke="var(--rule)" stroke-width="1"/>' +
+        '<line class="tl-guide" x1="0" y1="'+padTop+'" x2="0" y2="'+(H-padBot)+'"/>' +
+        '<path d="'+pathFor("income")+'" fill="none" stroke="var(--green)" stroke-width="1.5" opacity="0.85"/>' +
+        '<path d="'+points.map(function(p,i){ return (i===0?"M":"L") + x(i).toFixed(1) + "," + yFor(-p.expense).toFixed(1); }).join(" ")+'" fill="none" stroke="var(--rust)" stroke-width="1.5" opacity="0.85"/>' +
+        '<path d="'+pathFor("net")+'" fill="none" stroke="var(--gold)" stroke-width="2"/>' +
+        '<path d="'+cumPath+'" fill="none" stroke="var(--cumulative)" stroke-width="1.75" stroke-dasharray="5 3" opacity="0.9"/>' +
+        axisLabels() +
+        '<g>' + points.map(function(p,i){
+          return '<circle class="tl-hit" data-i="'+i+'" cx="'+x(i).toFixed(1)+'" cy="'+yFor(p.net).toFixed(1)+'" r="4" fill="var(--gold)" stroke="var(--bg)" stroke-width="1.5"/>';
+        }).join("") + '</g>' +
+        points.map(function(p,i){
+          var d = dotSize(i);
+          return '<circle cx="'+x(i).toFixed(1)+'" cy="'+yFor(p.net).toFixed(1)+'" r="'+d.r+'" fill="var(--gold)" opacity="'+d.op+'"/>';
+        }).join("") +
+        points.map(function(p,i){
+          var d = dotSize(i);
+          return '<circle cx="'+x(i).toFixed(1)+'" cy="'+yCum(p.cumulative).toFixed(1)+'" r="'+(d.r*0.8)+'" fill="var(--cumulative)" opacity="'+d.op+'"/>';
+        }).join("") +
+        '<g>' + hoverCols() + '</g>' +
+      '</svg>';
+
+    host.innerHTML = '<div class="timeline-inner">' + svg + '<div class="tl-tooltip"></div></div>';
+    var legend = document.createElement("div");
+    legend.className = "timeline-legend";
+    legend.innerHTML =
+      '<span><span class="swatch income"></span>income</span>' +
+      '<span><span class="swatch expense"></span>expenses</span>' +
+      '<span><span class="swatch net"></span>net balance</span>' +
+      '<span><span class="swatch cumulative"></span>cumulative net</span>';
+    host.appendChild(legend);
+    bindTimelineHost(host, points, x, W);
+  }
+
+  function renderAll(){
+    renderHero();
+    refreshYearOptions();
+    renderTransactions();
+    renderBreakdown();
+    renderFunds();
+    renderGoals();
+    renderTemplates();
+    renderTimeline();
+    refreshCategoryList();
+    renderNotepad();
+  }
+
+  // ---- month navigation ----
+  document.getElementById("prevMonth").addEventListener("click", function(){
+    viewMonth--;
+    if(viewMonth < 0){ viewMonth = 11; viewYear--; }
+    renderAll();
+  });
+  document.getElementById("nextMonth").addEventListener("click", function(){
+    viewMonth++;
+    if(viewMonth > 11){ viewMonth = 0; viewYear++; }
+    renderAll();
+  });
+
+  // ---- month dropdown (jump to a month that has entries) ----
+  var monthLabelBtn = document.getElementById("monthLabel");
+  var monthDropdownMenu = document.getElementById("monthDropdownMenu");
+
+  function closeMonthDropdown(){
+    monthDropdownMenu.classList.remove("show");
+    monthLabelBtn.setAttribute("aria-expanded", "false");
+  }
+
+  function renderMonthDropdown(){
+    var seen = {};
+    state.transactions.forEach(function(t){ seen[t.date.slice(0,7)] = true; });
+    var keys = Object.keys(seen).sort().reverse(); // most recent first
+
+    if(keys.length === 0){
+      monthDropdownMenu.innerHTML = '<div class="month-dropdown-empty">No entries yet</div>';
+      return;
+    }
+
+    monthDropdownMenu.innerHTML = keys.map(function(k){
+      var y = parseInt(k.slice(0,4), 10);
+      var m = parseInt(k.slice(5,7), 10) - 1;
+      var active = (y === viewYear && m === viewMonth);
+      return '<button type="button" data-y="'+y+'" data-m="'+m+'" class="'+(active ? "active" : "")+'">'+MONTH_NAMES[m]+' '+y+'</button>';
+    }).join("");
+  }
+
+  monthLabelBtn.addEventListener("click", function(e){
+    e.stopPropagation();
+    var willShow = !monthDropdownMenu.classList.contains("show");
+    if(willShow) renderMonthDropdown();
+    monthDropdownMenu.classList.toggle("show", willShow);
+    monthLabelBtn.setAttribute("aria-expanded", willShow ? "true" : "false");
+  });
+
+  monthDropdownMenu.addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-y]");
+    if(!btn) return;
+    viewYear = parseInt(btn.dataset.y, 10);
+    viewMonth = parseInt(btn.dataset.m, 10);
+    closeMonthDropdown();
+    renderAll();
+  });
+
+  document.addEventListener("click", function(e){
+    if(!document.getElementById("monthDropdown").contains(e.target)) closeMonthDropdown();
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape"){
+      closeMonthDropdown();
+      if(document.getElementById("printOptionsOverlay").classList.contains("show")){
+        document.getElementById("printOptionsOverlay").classList.remove("show");
+      }
+      if(document.getElementById("newTemplateOverlay").classList.contains("show")) closeNewTemplateModal();
+      if(document.getElementById("settingsOverlay").classList.contains("show")){
+        document.getElementById("settingsOverlay").classList.remove("show");
+        closeIconPicker();
+      }
+      if(document.getElementById("addEntryOverlay").classList.contains("show")) closeAddEntry();
+      if(document.getElementById("duplicateOverlay").classList.contains("show")) closeDuplicate();
+      if(document.getElementById("logDateOverlay").classList.contains("show")) closeLogDateModal();
+      return;
+    }
+
+    if((e.key === "c" || e.key === "C") && !e.ctrlKey && !e.metaKey && !e.altKey){
+      var active = document.activeElement;
+      var tag = active ? active.tagName : "";
+      var isTyping = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (active && active.isContentEditable);
+      var anyModalOpen = document.querySelector(".overlay.show");
+      var addBtn = document.getElementById("openAddEntry");
+      var addBtnVisible = addBtn && window.getComputedStyle(addBtn).display !== "none";
+      if(!isTyping && !anyModalOpen && addBtnVisible){
+        e.preventDefault();
+        openAddEntry();
+      }
+    }
+  });
+
+  // ---- settings ----
+  var overlay = document.getElementById("settingsOverlay");
+  var settingLedgerName = document.getElementById("settingLedgerName");
+  var settingTabTitle = document.getElementById("settingTabTitle");
+  var settingTabIcon = document.getElementById("settingTabIcon");
+  var settingCurrency = document.getElementById("settingCurrency");
+  var iconPickerBtn = document.getElementById("iconPickerBtn");
+  var iconPickerMenu = document.getElementById("iconPickerMenu");
+
+  function setTabIconValue(emoji){
+    settingTabIcon.value = emoji;
+    iconPickerBtn.textContent = emoji;
+  }
+
+  function closeIconPicker(){
+    iconPickerMenu.classList.remove("show");
+    iconPickerBtn.setAttribute("aria-expanded", "false");
+  }
+
+  iconPickerBtn.addEventListener("click", function(e){
+    e.stopPropagation();
+    var willShow = !iconPickerMenu.classList.contains("show");
+    iconPickerMenu.classList.toggle("show", willShow);
+    iconPickerBtn.setAttribute("aria-expanded", willShow ? "true" : "false");
+  });
+
+  iconPickerMenu.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    setTabIconValue(btn.dataset.emoji);
+    closeIconPicker();
+  });
+
+  document.addEventListener("click", function(e){
+    if(!document.getElementById("iconPicker").contains(e.target)) closeIconPicker();
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape") closeIconPicker();
+  });
+
+  document.getElementById("settingsTabs").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-tab]");
+    if(!btn) return;
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    document.getElementById("settingsPaneAppearance").classList.toggle("show", btn.dataset.tab === "appearance");
+    document.getElementById("settingsPaneData").classList.toggle("show", btn.dataset.tab === "data");
+  });
+
+  var settingProfileSelect = document.getElementById("settingProfileSelect");
+  var renameProfileBtn = document.getElementById("renameProfileBtn");
+  var settingConfirmDelete = document.getElementById("settingConfirmDelete");
+  var settingColorize = document.getElementById("settingColorize");
+
+  function fillProfileSelect(){
+    settingProfileSelect.innerHTML = app.profiles.map(function(p){
+      return '<option value="'+p.id+'">'+esc(p.name || "Untitled")+'</option>';
+    }).join("");
+    settingProfileSelect.value = state.id;
+  }
+
+  function switchProfile(id){
+    var next = app.profiles.find(function(p){ return p.id === id; });
+    if(!next) return;
+    state = next;
+    app.activeProfileId = next.id;
+    save();
+    applyMetadata();
+    fillProfileSelect();
+    renderNotepad();
+    renderAll();
+  }
+
+  settingProfileSelect.addEventListener("change", function(){
+    switchProfile(settingProfileSelect.value);
+    settingLedgerName.value = state.ledgerName || "Ledger";
+    settingTabTitle.value = state.tabTitle || "";
+    setTabIconValue(state.tabIcon || "💹");
+    settingCurrency.value = state.currency;
+  });
+
+  renameProfileBtn.addEventListener("click", function(){
+    var next = prompt("Rename profile", state.name || "Untitled");
+    if(next === null) return;
+    state.name = next.trim() || "Untitled";
+    save();
+    applyMetadata();
+    fillProfileSelect();
+  });
+
+  document.getElementById("addProfileBtn").addEventListener("click", function(){
+    var n = app.profiles.length + 1;
+    var p = emptyProfile(n === 1 ? "Untitled" : ("Profile " + n));
+    app.profiles.push(p);
+    switchProfile(p.id);
+    settingLedgerName.value = state.ledgerName || "Ledger";
+    settingTabTitle.value = state.tabTitle || "";
+    setTabIconValue(state.tabIcon || "💹");
+    settingCurrency.value = state.currency;
+  });
+
+  document.getElementById("deleteProfileBtn").addEventListener("click", function(){
+    if(app.profiles.length < 2){
+      alert("Keep at least one profile.");
+      return;
+    }
+    if(!confirm("Delete profile “"+(state.name || "Untitled")+"”? This cannot be undone.")) return;
+    var id = state.id;
+    app.profiles = app.profiles.filter(function(p){ return p.id !== id; });
+    switchProfile(app.profiles[0].id);
+    settingLedgerName.value = state.ledgerName || "Ledger";
+    settingTabTitle.value = state.tabTitle || "";
+    setTabIconValue(state.tabIcon || "💹");
+    settingCurrency.value = state.currency;
+  });
+
+  document.getElementById("openSettings").addEventListener("click", function(){
+    settingLedgerName.value = state.ledgerName || "Ledger";
+    settingTabTitle.value = state.tabTitle || "";
+    setTabIconValue(state.tabIcon || "💹");
+    settingCurrency.value = state.currency;
+    settingConfirmDelete.checked = app.confirmDelete !== false;
+    settingColorize.checked = app.colorizeEntries !== false;
+    fillProfileSelect();
+    overlay.classList.add("show");
+    settingLedgerName.focus();
+  });
+  document.getElementById("cancelSettings").addEventListener("click", function(){
+    overlay.classList.remove("show");
+    closeIconPicker();
+  });
+  document.getElementById("saveSettings").addEventListener("click", function(){
+    state.ledgerName = settingLedgerName.value.trim() || "Ledger";
+    state.tabTitle = settingTabTitle.value.trim();
+    state.tabIcon = settingTabIcon.value.trim() || "💹";
+    state.currency = settingCurrency.value.trim() || "₱";
+    app.confirmDelete = settingConfirmDelete.checked;
+    app.colorizeEntries = settingColorize.checked;
+    save();
+    applyMetadata();
+    applyColorize();
+    fillProfileSelect();
+    overlay.classList.remove("show");
+    closeIconPicker();
+    renderAll();
+  });
+  overlay.addEventListener("click", function(e){
+    if(e.target === overlay){ overlay.classList.remove("show"); closeIconPicker(); }
+  });
+
+  // ---- duplicate entry ----
+  var duplicateOverlay = document.getElementById("duplicateOverlay");
+  var dupTypeToggle = document.getElementById("dupTypeToggle");
+  var dupCategoryField = document.getElementById("dupCategoryField");
+  var dupFundSelectWrap = document.getElementById("dupFundSelectWrap");
+  var dupAmount = document.getElementById("dupAmount");
+  var dupCategory = document.getElementById("dupCategory");
+  var dupCategoryList = document.getElementById("dupCategoryList");
+  var dupFund = document.getElementById("dupFund");
+  var dupNote = document.getElementById("dupNote");
+  var dupDateInput = document.getElementById("dupDate");
+  var dupSavingsDirectionToggle = document.getElementById("dupSavingsDirectionToggle");
+  var dupCurrentType = "income";
+  var dupCurrentDirection = "add";
+  var duplicatingId = null;
+  var dupMode = "duplicate";
+
+  function updateDupFormForType(){
+    if(dupCurrentType === "savings"){
+      dupCategoryField.style.display = "none";
+      dupFundSelectWrap.classList.add("show");
+    } else {
+      dupCategoryField.style.display = "";
+      dupFundSelectWrap.classList.remove("show");
+      var merged = categoryOptionsFor(dupCurrentType);
+      dupCategoryList.innerHTML = merged.map(function(c){ return '<option value="'+esc(c)+'">'; }).join("");
+    }
+  }
+
+  function setDupDirection(dir){
+    dupCurrentDirection = dir;
+    Array.prototype.forEach.call(dupSavingsDirectionToggle.children, function(b){
+      b.classList.toggle("active", b.dataset.direction === dir);
+    });
+  }
+
+  dupSavingsDirectionToggle.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    setDupDirection(btn.dataset.direction);
+  });
+
+  dupTypeToggle.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    dupCurrentType = btn.dataset.type;
+    Array.prototype.forEach.call(dupTypeToggle.children, function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    updateDupFormForType();
+  });
+
+  function openDuplicate(id, mode){
+    var txn = state.transactions.find(function(t){ return t.id === id; });
+    if(!txn) return;
+    duplicatingId = id;
+    dupMode = mode === "edit" ? "edit" : "duplicate";
+
+    document.getElementById("dupModalTitle").textContent = dupMode === "edit" ? "Edit entry" : "Duplicate entry";
+    document.getElementById("confirmDuplicate").textContent = dupMode === "edit" ? "Save changes" : "Duplicate";
+
+    dupCurrentType = txn.type;
+    Array.prototype.forEach.call(dupTypeToggle.children, function(b){
+      b.classList.toggle("active", b.dataset.type === txn.type);
+    });
+    updateDupFormForType();
+
+    dupAmount.value = txn.amount;
+    dupNote.value = txn.note || "";
+    dupDateInput.value = txn.date;
+
+    if(txn.type === "savings"){
+      refreshFundSelect();
+      if(txn.goalId) dupFund.value = "goal:" + txn.goalId;
+      else if(txn.fundId) dupFund.value = "fund:" + txn.fundId;
+      else dupFund.value = "";
+      setDupDirection(txn.direction === "deduct" ? "deduct" : "add");
+    } else {
+      dupCategory.value = txn.category || "";
+    }
+
+    dupBreakdownEditor.load(txn.breakdown);
+
+    duplicateOverlay.classList.add("show");
+    dupAmount.focus();
+  }
+
+  function openEditTransaction(id){
+    openDuplicate(id, "edit");
+  }
+
+  function closeDuplicate(){
+    duplicateOverlay.classList.remove("show");
+    duplicatingId = null;
+    dupMode = "duplicate";
+    dupBreakdownEditor.reset();
+  }
+
+  document.getElementById("cancelDuplicate").addEventListener("click", closeDuplicate);
+  duplicateOverlay.addEventListener("click", function(e){
+    if(e.target === duplicateOverlay) closeDuplicate();
+  });
+
+  document.getElementById("confirmDuplicate").addEventListener("click", function(){
+    if(!duplicatingId) return;
+
+    var amount = parseFloat(dupAmount.value);
+    if(!amount || amount <= 0){ dupAmount.focus(); return; }
+    var newDate = dupDateInput.value;
+    if(!newDate){ dupDateInput.focus(); return; }
+    var note = dupNote.value.trim();
+
+    var breakdownRows = null;
+    if(dupBreakdownEditor.isOn()){
+      var bdRows = dupBreakdownEditor.getRows();
+      if(bdRows.length) breakdownRows = bdRows;
+    }
+
+    if(dupMode === "edit"){
+      var existing = state.transactions.find(function(t){ return t.id === duplicatingId; });
+      if(!existing){ closeDuplicate(); return; }
+      existing.type = dupCurrentType;
+      existing.amount = amount;
+      existing.date = newDate;
+      existing.note = note;
+      delete existing.breakdown;
+
+      if(dupCurrentType === "savings"){
+        var editDest = applySavingsDestination(amount, dupFund.value);
+        existing.category = editDest.category;
+        existing.fundId = editDest.fundId;
+        existing.goalId = editDest.goalId;
+        existing.direction = dupCurrentDirection;
+      } else {
+        existing.category = dupCategory.value.trim() || (dupCurrentType === "income" ? "Other income" : "Other");
+        delete existing.fundId;
+        delete existing.goalId;
+        delete existing.direction;
+        rememberCategory(dupCurrentType, existing.category);
+      }
+      if(breakdownRows) existing.breakdown = breakdownRows;
+
+      save();
+      closeDuplicate();
+      renderAll();
+      return;
+    }
+
+    var copy = {
+      id: uid(),
+      type: dupCurrentType,
+      amount: amount,
+      date: newDate,
+      note: note
+    };
+
+    if(dupCurrentType === "savings"){
+      var dest = applySavingsDestination(amount, dupFund.value);
+      copy.category = dest.category;
+      copy.fundId = dest.fundId;
+      copy.goalId = dest.goalId;
+      copy.direction = dupCurrentDirection;
+    } else {
+      copy.category = dupCategory.value.trim() || (dupCurrentType === "income" ? "Other income" : "Other");
+      rememberCategory(dupCurrentType, copy.category);
+    }
+
+    if(breakdownRows) copy.breakdown = breakdownRows;
+
+    state.transactions.push(copy);
+    save();
+    closeDuplicate();
+    renderAll();
+  });
+
+  document.getElementById("dupSaveAsTemplateBtn").addEventListener("click", function(){
+    var amount = parseFloat(dupAmount.value);
+    if(!amount || amount <= 0){ dupAmount.focus(); return; }
+    var name = prompt("Name this template:");
+    if(name === null) return;
+    name = name.trim();
+    if(!name) return;
+
+    var note = dupNote.value.trim();
+    var tpl = { id: uid(), name: name, type: dupCurrentType, amount: amount, note: note };
+    if(dupCurrentType === "savings"){
+      var dest = applySavingsDestination(amount, dupFund.value);
+      tpl.category = dest.category;
+      tpl.fundId = dest.fundId;
+      tpl.goalId = dest.goalId;
+      tpl.direction = dupCurrentDirection;
+    } else {
+      tpl.category = dupCategory.value.trim() || (dupCurrentType === "income" ? "Other income" : "Other");
+    }
+    if(dupBreakdownEditor.isOn()){
+      var dupTplBdRows = dupBreakdownEditor.getRows();
+      if(dupTplBdRows.length) tpl.breakdown = dupTplBdRows;
+    }
+    state.templates.push(tpl);
+    save();
+    renderTemplates();
+    alert("Saved as template: " + name);
+  });
+
+  function exportFileStamp(){
+    var d = new Date();
+    return d.getFullYear() + String(d.getMonth()+1).padStart(2,"0") + String(d.getDate()).padStart(2,"0");
+  }
+
+  function safeFileName(name){
+    return String(name || "Untitled").replace(/[\\/:*?"<>|]+/g, "").trim() || "Untitled";
+  }
+
+  function applyImportedPayload(data){
+    var incoming = data;
+    if(data && Array.isArray(data.profiles) && data.profiles.length){
+      incoming = data.profiles.find(function(p){ return p.id === data.activeProfileId; }) || data.profiles[0];
+    }
+    if(!incoming || !Array.isArray(incoming.transactions) || !Array.isArray(incoming.funds)) return false;
+    var keepId = state.id;
+    var keepName = state.name;
+    var next = normalizeProfile(incoming);
+    next.id = keepId;
+    if(!incoming.name) next.name = keepName;
+    var idx = app.profiles.findIndex(function(p){ return p.id === keepId; });
+    if(idx === -1) return false;
+    app.profiles[idx] = next;
+    state = next;
+    return true;
+  }
+
+  document.getElementById("exportBtn").addEventListener("click", function(){
+    var payload = {
+      ledgerExport: true,
+      profileName: state.name || "Untitled",
+      currency: state.currency,
+      ledgerName: state.ledgerName,
+      tabTitle: state.tabTitle,
+      tabIcon: state.tabIcon,
+      transactions: state.transactions,
+      funds: state.funds,
+      goals: state.goals || [],
+      templates: state.templates || [],
+      customCategories: state.customCategories || { income: [], expense: [] },
+      notepad: state.notepad || ""
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "Ledger_" + exportFileStamp() + "_" + safeFileName(state.name) + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  function csvEscape(v){
+    var s = String(v === undefined || v === null ? "" : v);
+    if(/[",\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  document.getElementById("exportCsvBtn").addEventListener("click", function(){
+    var rows = [["Date","Type","Category","Note","Amount","Direction","Fund/Goal","Breakdown No","Breakdown Note","Breakdown Amount","Breakdown Direction","Breakdown Date"]];
+    var sorted = state.transactions.slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+    sorted.forEach(function(t){
+      var dest = "";
+      if(t.type === "savings"){
+        if(t.fundId){
+          var f = (state.funds || []).find(function(x){ return x.id === t.fundId; });
+          dest = f ? f.name : "";
+        } else if(t.goalId){
+          var g = (state.goals || []).find(function(x){ return x.id === t.goalId; });
+          dest = g ? g.name : "";
+        } else {
+          dest = "General savings";
+        }
+      }
+      rows.push([
+        t.date,
+        t.type,
+        t.category || "",
+        t.note || "",
+        t.amount,
+        t.type === "savings" ? (t.direction || "add") : "",
+        dest,
+        "", "", "", "", ""
+      ]);
+      if(t.breakdown && t.breakdown.length){
+        t.breakdown.forEach(function(b, i){
+          rows.push([
+            "", "", "", "", "", "", "",
+            i + 1,
+            b.note || "",
+            b.amount,
+            b.direction === "sub" ? "sub" : "add",
+            b.date || ""
+          ]);
+        });
+      }
+    });
+    var csv = rows.map(function(r){ return r.map(csvEscape).join(","); }).join("\r\n");
+    var blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "Ledger_" + exportFileStamp() + "_" + safeFileName(state.name) + ".csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById("importBtn").addEventListener("click", function(){
+    document.getElementById("importFile").click();
+  });
+  document.getElementById("importFile").addEventListener("change", function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        if(applyImportedPayload(data)){
+          save();
+          applyMetadata();
+          fillProfileSelect();
+          overlay.classList.remove("show");
+          renderAll();
+        } else {
+          alert("This file doesn't look like a Ledger export.");
+        }
+      }catch(err){
+        alert("Couldn't read that file.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+
+  // ---- modes ----
+  var modeLabel = document.getElementById("modeLabel");
+  var modeMenu = document.getElementById("modeMenu");
+  var MODE_LABELS = { ledger: "Ledger", book: "Book", templates: "Templates", notepad: "Notepad" };
+
+  function closeModeMenu(){
+    modeMenu.classList.remove("show");
+    modeLabel.setAttribute("aria-expanded", "false");
+  }
+
+  function applyViewMode(){
+    var mode = app.viewMode || "ledger";
+    document.body.classList.toggle("mode-book", mode === "book");
+    document.body.classList.toggle("mode-templates", mode === "templates");
+    document.body.classList.toggle("mode-notepad", mode === "notepad");
+    modeLabel.textContent = MODE_LABELS[mode] || "Ledger";
+    Array.prototype.forEach.call(modeMenu.querySelectorAll("button"), function(b){
+      b.classList.toggle("active", b.dataset.mode === mode);
+    });
+    var grid = document.querySelector(".ledger-main .grid");
+    if(grid) grid.classList.toggle("book-page", mode === "book");
+    if(mode === "templates") renderTemplates();
+  }
+
+  modeLabel.addEventListener("click", function(e){
+    e.stopPropagation();
+    var willShow = !modeMenu.classList.contains("show");
+    modeMenu.classList.toggle("show", willShow);
+    modeLabel.setAttribute("aria-expanded", willShow ? "true" : "false");
+  });
+  modeMenu.addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-mode]");
+    if(!btn) return;
+    app.viewMode = btn.dataset.mode;
+    save();
+    closeModeMenu();
+    applyViewMode();
+    renderAll();
+  });
+  document.addEventListener("click", function(e){
+    if(!document.getElementById("modeDropdown").contains(e.target)) closeModeMenu();
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape") closeModeMenu();
+  });
+
+  // ---- notepad ----
+  var notepadInput = document.getElementById("notepadInput");
+  var notepadPreview = document.getElementById("notepadPreview");
+
+  function renderMarkdown(src){
+    var lines = String(src || "").split("\n");
+    var html = [];
+    var inUl = false, inOl = false;
+    function closeLists(){
+      if(inUl){ html.push("</ul>"); inUl = false; }
+      if(inOl){ html.push("</ol>"); inOl = false; }
+    }
+    function inlineFmt(t){
+      t = esc(t);
+      t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+      t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      t = t.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+      t = t.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      return t;
+    }
+    lines.forEach(function(line){
+      if(/^###\s+/.test(line)){ closeLists(); html.push("<h3>"+inlineFmt(line.replace(/^###\s+/, ""))+"</h3>"); return; }
+      if(/^##\s+/.test(line)){ closeLists(); html.push("<h2>"+inlineFmt(line.replace(/^##\s+/, ""))+"</h2>"); return; }
+      if(/^#\s+/.test(line)){ closeLists(); html.push("<h1>"+inlineFmt(line.replace(/^#\s+/, ""))+"</h1>"); return; }
+      if(/^[-*]\s+/.test(line)){
+        if(!inUl){ closeLists(); html.push("<ul>"); inUl = true; }
+        html.push("<li>"+inlineFmt(line.replace(/^[-*]\s+/, ""))+"</li>");
+        return;
+      }
+      if(/^\d+\.\s+/.test(line)){
+        if(!inOl){ closeLists(); html.push("<ol>"); inOl = true; }
+        html.push("<li>"+inlineFmt(line.replace(/^\d+\.\s+/, ""))+"</li>");
+        return;
+      }
+      closeLists();
+      if(!line.trim()){ html.push("<p></p>"); return; }
+      html.push("<p>"+inlineFmt(line)+"</p>");
+    });
+    closeLists();
+    return html.join("") || "<p></p>";
+  }
+
+  function renderNotepad(){
+    if(notepadInput.value !== (state.notepad || "")){
+      notepadInput.value = state.notepad || "";
+    }
+    notepadPreview.innerHTML = renderMarkdown(notepadInput.value);
+  }
+
+  notepadInput.addEventListener("input", function(){
+    state.notepad = notepadInput.value;
+    notepadPreview.innerHTML = renderMarkdown(notepadInput.value);
+    save();
+  });
+
+  var notepadViewToggle = document.getElementById("notepadViewToggle");
+  notepadViewToggle.addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-view]");
+    if(!btn) return;
+    Array.prototype.forEach.call(notepadViewToggle.children, function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    var showOutput = btn.dataset.view === "output";
+    if(showOutput) notepadPreview.innerHTML = renderMarkdown(notepadInput.value);
+    notepadInput.style.display = showOutput ? "none" : "block";
+    notepadPreview.style.display = showOutput ? "block" : "none";
+  });
+
+  applyViewMode();
+
+  // ---- sticky header shadow on scroll ----
+  var headerEl = document.querySelector("header");
+  function updateHeaderStuck(){
+    headerEl.classList.toggle("stuck", window.scrollY > 4);
+  }
+  window.addEventListener("scroll", updateHeaderStuck, { passive: true });
+  updateHeaderStuck();
+
+  renderAll();
+})();
+</script>
+
+</body>
+</html>
